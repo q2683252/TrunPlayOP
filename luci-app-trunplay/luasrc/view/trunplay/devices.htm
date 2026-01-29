@@ -1,0 +1,186 @@
+<%#
+TrunPlay - Devices Management Page
+%>
+
+<%+header%>
+
+<h2><%:设备管理%></h2>
+
+<div class="cbi-section">
+    <div class="cbi-section-node">
+        <button class="cbi-button cbi-button-action" onclick="trunplay.discover()"><%:扫描设备%></button>
+        <button class="cbi-button" onclick="trunplay.loadDevices()"><%:刷新%></button>
+        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddDevice()"><%:手动添加%></button>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:设备列表%></h3>
+    <table class="cbi-section-table" id="devices-table">
+        <tr class="cbi-section-table-titles">
+            <th><%:名称%></th>
+            <th><%:IP 地址%></th>
+            <th><%:类型%></th>
+            <th><%:状态%></th>
+            <th><%:来源%></th>
+            <th><%:操作%></th>
+        </tr>
+        <tr id="devices-loading">
+            <td colspan="6"><%:加载中...%></td>
+        </tr>
+    </table>
+</div>
+
+<!-- Add Device Modal -->
+<div id="device-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="background:#fff; max-width:400px; margin:100px auto; padding:20px; border-radius:5px;">
+        <h3><%:手动添加设备%></h3>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:IP 地址%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="device-address" placeholder="192.168.1.100">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:端口%></label>
+            <div class="cbi-value-field">
+                <input type="number" id="device-port" value="8200">
+            </div>
+        </div>
+
+        <div style="margin-top:20px; text-align:right;">
+            <button class="cbi-button" onclick="trunplay.hideModal()"><%:取消%></button>
+            <button class="cbi-button cbi-button-save" onclick="trunplay.addDevice()"><%:添加%></button>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', this.apiBase, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    loadDevices: function() {
+        var self = this;
+        this.api('/devices', 'GET', null, function(data) {
+            var table = document.getElementById('devices-table');
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            if (!data || data.length === 0) {
+                var row = table.insertRow(-1);
+                row.innerHTML = '<td colspan="6">暂无设备，请点击"扫描设备"</td>';
+                return;
+            }
+
+            data.forEach(function(device) {
+                var row = table.insertRow(-1);
+                row.innerHTML =
+                    '<td>' + (device.name || '-') + '</td>' +
+                    '<td>' + (device.address || '-') + '</td>' +
+                    '<td>' + (device.type || 'MediaRenderer') + '</td>' +
+                    '<td>' + (device.is_online ? '<span style="color:green;">在线</span>' : '<span style="color:gray;">离线</span>') + '</td>' +
+                    '<td>' + (device.source === 'MANUAL' ? '手动添加' : '自动发现') + '</td>' +
+                    '<td>' +
+                        '<button class="cbi-button" onclick="trunplay.checkStatus(\'' + device.id + '\')">检查状态</button> ' +
+                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deleteDevice(\'' + device.id + '\')">删除</button>' +
+                    '</td>';
+            });
+        });
+    },
+
+    discover: function() {
+        var self = this;
+        var btn = event.target;
+        btn.disabled = true;
+        btn.textContent = '扫描中...';
+
+        this.api('/devices/discover?timeout=5', 'POST', {}, function(data) {
+            btn.disabled = false;
+            btn.textContent = '扫描设备';
+
+            if (data && data.devices) {
+                alert('发现 ' + data.devices.length + ' 个设备');
+            }
+            self.loadDevices();
+        });
+    },
+
+    showAddDevice: function() {
+        document.getElementById('device-address').value = '';
+        document.getElementById('device-port').value = '8200';
+        document.getElementById('device-modal').style.display = '';
+    },
+
+    hideModal: function() {
+        document.getElementById('device-modal').style.display = 'none';
+    },
+
+    addDevice: function() {
+        var address = document.getElementById('device-address').value;
+        var port = parseInt(document.getElementById('device-port').value);
+
+        if (!address) {
+            alert('请输入 IP 地址');
+            return;
+        }
+
+        this.api('/devices/add', 'POST', {address: address, port: port}, function(data) {
+            if (data && data.id) {
+                trunplay.hideModal();
+                trunplay.loadDevices();
+                alert('设备添加成功: ' + data.name);
+            } else {
+                alert('添加失败，请检查 IP 地址和端口');
+            }
+        });
+    },
+
+    checkStatus: function(deviceId) {
+        this.api('/devices/' + deviceId + '/status', 'GET', null, function(data) {
+            if (data) {
+                alert(data.name + ': ' + (data.is_online ? '在线' : '离线'));
+            }
+            trunplay.loadDevices();
+        });
+    },
+
+    deleteDevice: function(deviceId) {
+        if (!confirm('确定要删除这个设备吗？')) return;
+
+        this.api('/devices/' + deviceId, 'DELETE', null, function() {
+            trunplay.loadDevices();
+        });
+    },
+
+    init: function() {
+        this.loadDevices();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>

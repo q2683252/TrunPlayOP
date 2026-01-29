@@ -1,0 +1,18 @@
+#!/bin/sh
+# TrunPlay cron trigger script
+# Called by cron to start scheduled playback
+
+PLAN_ID="$1"
+API_URL="http://127.0.0.1:8088/api/v1"
+
+if [ -z "$PLAN_ID" ]; then
+    echo "Usage: trunplay-trigger <plan_id>"
+    exit 1
+fi
+
+# Trigger playback via API
+curl -s -X POST "${API_URL}/plans/${PLAN_ID}/play" \
+    -H "Content-Type: application/json" \
+    > /dev/null 2>&1
+
+exit $?

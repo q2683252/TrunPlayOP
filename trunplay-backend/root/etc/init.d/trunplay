@@ -1,0 +1,32 @@
+#!/bin/sh /etc/rc.common
+# TrunPlay Backend Service for OpenWrt
+
+START=95
+STOP=10
+USE_PROCD=1
+
+PROG=/usr/lib/trunplay/main.py
+PIDFILE=/var/run/trunplay.pid
+
+start_service() {
+    # Ensure config directory exists
+    mkdir -p /etc/trunplay
+
+    procd_open_instance
+    procd_set_param command python3 $PROG
+    procd_set_param pidfile $PIDFILE
+    procd_set_param respawn
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    procd_set_param user root
+    procd_close_instance
+}
+
+stop_service() {
+    # Kill any remaining processes
+    killall -q python3 2>/dev/null
+}
+
+service_triggers() {
+    procd_add_reload_trigger "trunplay"
+}

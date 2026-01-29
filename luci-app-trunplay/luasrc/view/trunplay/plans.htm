@@ -1,0 +1,299 @@
+<%#
+TrunPlay - Plans Management Page
+%>
+
+<%+header%>
+
+<h2><%:播放计划管理%></h2>
+
+<div class="cbi-section">
+    <div class="cbi-section-node">
+        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddPlan()"><%:新建计划%></button>
+        <button class="cbi-button cbi-button-action" onclick="trunplay.loadPlans()"><%:刷新%></button>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:计划列表%></h3>
+    <table class="cbi-section-table" id="plans-table">
+        <tr class="cbi-section-table-titles">
+            <th><%:标题%></th>
+            <th><%:开始时间%></th>
+            <th><%:重复日期%></th>
+            <th><%:状态%></th>
+            <th><%:操作%></th>
+        </tr>
+        <tr id="plans-loading">
+            <td colspan="5"><%:加载中...%></td>
+        </tr>
+    </table>
+</div>
+
+<!-- Add/Edit Plan Modal -->
+<div id="plan-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="background:#fff; max-width:500px; margin:50px auto; padding:20px; border-radius:5px;">
+        <h3 id="modal-title"><%:新建计划%></h3>
+        <input type="hidden" id="plan-id">
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:标题%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="plan-title" style="width:100%;">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:开始时间%></label>
+            <div class="cbi-value-field">
+                <input type="time" id="plan-start-time" value="09:00">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:结束时间%></label>
+            <div class="cbi-value-field">
+                <input type="time" id="plan-end-time" value="17:00">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:重复日期%></label>
+            <div class="cbi-value-field">
+                <label><input type="checkbox" class="day-check" value="1"> 周一</label>
+                <label><input type="checkbox" class="day-check" value="2"> 周二</label>
+                <label><input type="checkbox" class="day-check" value="3"> 周三</label>
+                <label><input type="checkbox" class="day-check" value="4"> 周四</label>
+                <label><input type="checkbox" class="day-check" value="5"> 周五</label>
+                <label><input type="checkbox" class="day-check" value="6"> 周六</label>
+                <label><input type="checkbox" class="day-check" value="7"> 周日</label>
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:设备%></label>
+            <div class="cbi-value-field">
+                <select id="plan-device" style="width:100%;">
+                    <option value=""><%:选择设备%></option>
+                </select>
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:媒体 URL%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="plan-media-url" style="width:100%;" placeholder="smb://server/share/video.mp4">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:播放模式%></label>
+            <div class="cbi-value-field">
+                <select id="plan-play-mode">
+                    <option value="SEQUENTIAL">顺序播放</option>
+                    <option value="RANDOM">随机播放</option>
+                    <option value="LOOP">列表循环</option>
+                    <option value="SINGLE_LOOP">单曲循环</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top:20px; text-align:right;">
+            <button class="cbi-button" onclick="trunplay.hideModal()"><%:取消%></button>
+            <button class="cbi-button cbi-button-save" onclick="trunplay.savePlan()"><%:保存%></button>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+    plans: [],
+    devices: [],
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', this.apiBase, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    dayNames: ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+
+    formatDays: function(days) {
+        if (!days) return '-';
+        return days.split(',').map(function(d) {
+            return trunplay.dayNames[parseInt(d)] || d;
+        }).join(', ');
+    },
+
+    loadPlans: function() {
+        var self = this;
+        this.api('/plans', 'GET', null, function(data) {
+            var table = document.getElementById('plans-table');
+            // Remove all rows except header
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            if (!data || data.length === 0) {
+                var row = table.insertRow(-1);
+                row.innerHTML = '<td colspan="5">暂无计划</td>';
+                return;
+            }
+
+            self.plans = data;
+            data.forEach(function(plan) {
+                var row = table.insertRow(-1);
+                row.innerHTML =
+                    '<td>' + (plan.title || '-') + '</td>' +
+                    '<td>' + (plan.start_time || '-') + '</td>' +
+                    '<td>' + self.formatDays(plan.repeat_days) + '</td>' +
+                    '<td>' + (plan.is_active ? '<span style="color:green;">启用</span>' : '<span style="color:gray;">停用</span>') + '</td>' +
+                    '<td>' +
+                        '<button class="cbi-button cbi-button-action" onclick="trunplay.playNow(\'' + plan.id + '\')">播放</button> ' +
+                        '<button class="cbi-button" onclick="trunplay.editPlan(\'' + plan.id + '\')">编辑</button> ' +
+                        '<button class="cbi-button" onclick="trunplay.togglePlan(\'' + plan.id + '\', ' + plan.is_active + ')">' + (plan.is_active ? '停用' : '启用') + '</button> ' +
+                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deletePlan(\'' + plan.id + '\')">删除</button>' +
+                    '</td>';
+            });
+        });
+    },
+
+    loadDevices: function() {
+        var self = this;
+        this.api('/devices', 'GET', null, function(data) {
+            self.devices = data || [];
+            var select = document.getElementById('plan-device');
+            select.innerHTML = '<option value="">选择设备</option>';
+            self.devices.forEach(function(d) {
+                select.innerHTML += '<option value="' + d.id + '">' + d.name + ' (' + d.address + ')</option>';
+            });
+        });
+    },
+
+    showAddPlan: function() {
+        document.getElementById('modal-title').textContent = '新建计划';
+        document.getElementById('plan-id').value = '';
+        document.getElementById('plan-title').value = '';
+        document.getElementById('plan-start-time').value = '09:00';
+        document.getElementById('plan-end-time').value = '17:00';
+        document.getElementById('plan-device').value = '';
+        document.getElementById('plan-media-url').value = '';
+        document.getElementById('plan-play-mode').value = 'SEQUENTIAL';
+
+        document.querySelectorAll('.day-check').forEach(function(cb) {
+            cb.checked = false;
+        });
+
+        this.loadDevices();
+        document.getElementById('plan-modal').style.display = '';
+    },
+
+    editPlan: function(planId) {
+        var plan = this.plans.find(function(p) { return p.id === planId; });
+        if (!plan) return;
+
+        document.getElementById('modal-title').textContent = '编辑计划';
+        document.getElementById('plan-id').value = plan.id;
+        document.getElementById('plan-title').value = plan.title || '';
+        document.getElementById('plan-start-time').value = plan.start_time || '09:00';
+        document.getElementById('plan-end-time').value = plan.end_time || '17:00';
+        document.getElementById('plan-device').value = plan.device_id || '';
+        document.getElementById('plan-media-url').value = plan.media_url || '';
+        document.getElementById('plan-play-mode').value = plan.play_mode || 'SEQUENTIAL';
+
+        var days = (plan.repeat_days || '').split(',');
+        document.querySelectorAll('.day-check').forEach(function(cb) {
+            cb.checked = days.indexOf(cb.value) !== -1;
+        });
+
+        this.loadDevices();
+        setTimeout(function() {
+            document.getElementById('plan-device').value = plan.device_id || '';
+        }, 500);
+
+        document.getElementById('plan-modal').style.display = '';
+    },
+
+    hideModal: function() {
+        document.getElementById('plan-modal').style.display = 'none';
+    },
+
+    savePlan: function() {
+        var planId = document.getElementById('plan-id').value;
+        var days = [];
+        document.querySelectorAll('.day-check:checked').forEach(function(cb) {
+            days.push(cb.value);
+        });
+
+        var data = {
+            title: document.getElementById('plan-title').value,
+            start_time: document.getElementById('plan-start-time').value,
+            end_time: document.getElementById('plan-end-time').value,
+            repeat_days: days.join(','),
+            device_id: document.getElementById('plan-device').value || null,
+            media_url: document.getElementById('plan-media-url').value,
+            play_mode: document.getElementById('plan-play-mode').value,
+            is_active: true
+        };
+
+        var path = planId ? '/plans/' + planId : '/plans';
+        var method = planId ? 'PUT' : 'POST';
+
+        this.api(path, method, data, function(result) {
+            if (result && result.id) {
+                trunplay.hideModal();
+                trunplay.loadPlans();
+            } else {
+                alert('保存失败');
+            }
+        });
+    },
+
+    deletePlan: function(planId) {
+        if (!confirm('确定要删除这个计划吗？')) return;
+
+        this.api('/plans/' + planId, 'DELETE', null, function() {
+            trunplay.loadPlans();
+        });
+    },
+
+    togglePlan: function(planId, currentActive) {
+        var path = '/plans/' + planId + (currentActive ? '/deactivate' : '/activate');
+        this.api(path, 'POST', {}, function() {
+            trunplay.loadPlans();
+        });
+    },
+
+    playNow: function(planId) {
+        this.api('/plans/' + planId + '/play', 'POST', {}, function(result) {
+            if (result && result.message) {
+                alert('已开始播放');
+            } else {
+                alert('播放失败');
+            }
+        });
+    },
+
+    init: function() {
+        this.loadPlans();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>

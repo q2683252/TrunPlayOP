@@ -1,0 +1,237 @@
+<%#
+TrunPlay - SMB Servers Management Page
+%>
+
+<%+header%>
+
+<h2><%:SMB 存储管理%></h2>
+
+<div class="cbi-section">
+    <div class="cbi-section-node">
+        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddServer()"><%:添加服务器%></button>
+        <button class="cbi-button" onclick="trunplay.loadServers()"><%:刷新%></button>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:SMB 服务器列表%></h3>
+    <table class="cbi-section-table" id="servers-table">
+        <tr class="cbi-section-table-titles">
+            <th><%:名称%></th>
+            <th><%:主机%></th>
+            <th><%:用户名%></th>
+            <th><%:状态%></th>
+            <th><%:操作%></th>
+        </tr>
+        <tr id="servers-loading">
+            <td colspan="5"><%:加载中...%></td>
+        </tr>
+    </table>
+</div>
+
+<!-- Add/Edit Server Modal -->
+<div id="server-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
+    <div style="background:#fff; max-width:400px; margin:50px auto; padding:20px; border-radius:5px;">
+        <h3 id="modal-title"><%:添加 SMB 服务器%></h3>
+        <input type="hidden" id="server-id">
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:名称%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="server-name" placeholder="我的 NAS">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:主机/IP%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="server-host" placeholder="192.168.1.200">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:端口%></label>
+            <div class="cbi-value-field">
+                <input type="number" id="server-port" value="445">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:用户名%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="server-username" placeholder="留空为匿名访问">
+            </div>
+        </div>
+
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:密码%></label>
+            <div class="cbi-value-field">
+                <input type="password" id="server-password">
+            </div>
+        </div>
+
+        <div style="margin-top:20px; text-align:right;">
+            <button class="cbi-button" onclick="trunplay.testConnection()"><%:测试连接%></button>
+            <button class="cbi-button" onclick="trunplay.hideModal()"><%:取消%></button>
+            <button class="cbi-button cbi-button-save" onclick="trunplay.saveServer()"><%:保存%></button>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+    servers: [],
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', this.apiBase, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    loadServers: function() {
+        var self = this;
+        this.api('/smb/servers', 'GET', null, function(data) {
+            var table = document.getElementById('servers-table');
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            if (!data || data.length === 0) {
+                var row = table.insertRow(-1);
+                row.innerHTML = '<td colspan="5">暂无 SMB 服务器</td>';
+                return;
+            }
+
+            self.servers = data;
+            data.forEach(function(server) {
+                var row = table.insertRow(-1);
+                row.innerHTML =
+                    '<td>' + (server.name || '-') + '</td>' +
+                    '<td>' + (server.host || '-') + ':' + (server.port || 445) + '</td>' +
+                    '<td>' + (server.username || '匿名') + '</td>' +
+                    '<td>' + (server.is_connected ? '<span style="color:green;">已连接</span>' : '<span style="color:gray;">未连接</span>') + '</td>' +
+                    '<td>' +
+                        '<button class="cbi-button" onclick="trunplay.browseServer(\'' + server.id + '\')">浏览</button> ' +
+                        '<button class="cbi-button" onclick="trunplay.editServer(\'' + server.id + '\')">编辑</button> ' +
+                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deleteServer(\'' + server.id + '\')">删除</button>' +
+                    '</td>';
+            });
+        });
+    },
+
+    showAddServer: function() {
+        document.getElementById('modal-title').textContent = '添加 SMB 服务器';
+        document.getElementById('server-id').value = '';
+        document.getElementById('server-name').value = '';
+        document.getElementById('server-host').value = '';
+        document.getElementById('server-port').value = '445';
+        document.getElementById('server-username').value = '';
+        document.getElementById('server-password').value = '';
+        document.getElementById('server-modal').style.display = '';
+    },
+
+    editServer: function(serverId) {
+        var server = this.servers.find(function(s) { return s.id === serverId; });
+        if (!server) return;
+
+        document.getElementById('modal-title').textContent = '编辑 SMB 服务器';
+        document.getElementById('server-id').value = server.id;
+        document.getElementById('server-name').value = server.name || '';
+        document.getElementById('server-host').value = server.host || '';
+        document.getElementById('server-port').value = server.port || 445;
+        document.getElementById('server-username').value = server.username || '';
+        document.getElementById('server-password').value = '';
+        document.getElementById('server-modal').style.display = '';
+    },
+
+    hideModal: function() {
+        document.getElementById('server-modal').style.display = 'none';
+    },
+
+    testConnection: function() {
+        var data = {
+            host: document.getElementById('server-host').value,
+            port: parseInt(document.getElementById('server-port').value),
+            username: document.getElementById('server-username').value,
+            password: document.getElementById('server-password').value
+        };
+
+        if (!data.host) {
+            alert('请输入主机地址');
+            return;
+        }
+
+        this.api('/smb/servers/test', 'POST', data, function(result) {
+            if (result) {
+                alert(result.success ? '连接成功: ' + result.message : '连接失败: ' + result.message);
+            } else {
+                alert('测试请求失败');
+            }
+        });
+    },
+
+    saveServer: function() {
+        var serverId = document.getElementById('server-id').value;
+        var data = {
+            name: document.getElementById('server-name').value,
+            host: document.getElementById('server-host').value,
+            port: parseInt(document.getElementById('server-port').value),
+            username: document.getElementById('server-username').value,
+            password: document.getElementById('server-password').value
+        };
+
+        if (!data.name || !data.host) {
+            alert('请填写名称和主机');
+            return;
+        }
+
+        var path = serverId ? '/smb/servers/' + serverId : '/smb/servers';
+        var method = serverId ? 'PUT' : 'POST';
+
+        this.api(path, method, data, function(result) {
+            if (result && result.id) {
+                trunplay.hideModal();
+                trunplay.loadServers();
+            } else {
+                alert('保存失败');
+            }
+        });
+    },
+
+    deleteServer: function(serverId) {
+        if (!confirm('确定要删除这个服务器吗？')) return;
+
+        this.api('/smb/servers/' + serverId, 'DELETE', null, function() {
+            trunplay.loadServers();
+        });
+    },
+
+    browseServer: function(serverId) {
+        // Navigate to media browser with this server
+        alert('浏览功能即将实现');
+    },
+
+    init: function() {
+        this.loadServers();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>
