@@ -13,8 +13,8 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 
-# Cron file path
-CRONTAB_FILE = "/etc/crontabs/root"
+# Cron file path - use environment variable for development
+CRONTAB_FILE = os.environ.get("TRUNPLAY_CRONTAB_FILE", "/etc/crontabs/root")
 CRON_TAG = "# TrunPlay:"
 TRIGGER_SCRIPT = "/usr/bin/trunplay-trigger"
 API_BASE_URL = "http://127.0.0.1:8088"

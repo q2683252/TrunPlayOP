@@ -3,8 +3,22 @@ Pytest configuration and shared fixtures for TrunPlay tests.
 """
 import os
 import sys
+import tempfile
 import pytest
 from typing import Generator
+
+# Set test environment variables BEFORE any imports from src
+# This prevents the app from trying to access /etc/trunplay or /etc/crontabs
+_test_temp_dir = tempfile.mkdtemp(prefix="trunplay_test_")
+os.environ["TRUNPLAY_CONFIG_PATH"] = os.path.join(_test_temp_dir, "config.json")
+os.environ["TRUNPLAY_DB_PATH"] = os.path.join(_test_temp_dir, "test.db")
+os.environ["TRUNPLAY_CRONTAB_FILE"] = os.path.join(_test_temp_dir, "crontab")
+# Use random high ports to avoid conflicts
+import random
+_test_api_port = random.randint(30000, 40000)
+_test_media_port = random.randint(40000, 50000)
+os.environ["TRUNPLAY_API_PORT"] = str(_test_api_port)
+os.environ["TRUNPLAY_MEDIA_PORT"] = str(_test_media_port)
 
 # Add src to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -102,25 +116,82 @@ def log_capture(request) -> Generator[LogCapture, None, None]:
 
 # ==================== API Client Fixture ====================
 
+@pytest.fixture(scope="module")
+def test_app():
+    """
+    Create a FastAPI app for testing without lifespan.
+    This avoids starting real services during tests.
+    """
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    from src.database.models import init_db
+    from src.api import plans, devices, smb, media, playback, study, history, system
+
+    # Ensure database is initialized
+    init_db()
+
+    # Create a test app without lifespan (no real services started)
+    test_app = FastAPI(
+        title="TrunPlay API (Test)",
+        description="TrunPlay Test Instance",
+        version="1.0.0-test"
+    )
+
+    # Add CORS middleware
+    test_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Include API routers
+    test_app.include_router(plans.router, prefix="/api/v1", tags=["plans"])
+    test_app.include_router(devices.router, prefix="/api/v1", tags=["devices"])
+    test_app.include_router(smb.router, prefix="/api/v1", tags=["smb"])
+    test_app.include_router(media.router, prefix="/api/v1", tags=["media"])
+    test_app.include_router(playback.router, prefix="/api/v1", tags=["playback"])
+    test_app.include_router(study.router, prefix="/api/v1", tags=["study"])
+    test_app.include_router(history.router, prefix="/api/v1", tags=["history"])
+    test_app.include_router(system.router, prefix="/api/v1", tags=["system"])
+
+    # Root endpoints
+    @test_app.get("/")
+    async def root():
+        return {"message": "TrunPlay API", "version": "1.0.0-test"}
+
+    @test_app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+    return test_app
+
+
 @pytest.fixture
-def client(db_session, mock_dlna, mock_smb, mock_scheduler):
+def client(test_app, db_session, mock_dlna, mock_smb, mock_scheduler):
     """
     Create a FastAPI TestClient with all mocks injected.
 
     This fixture overrides the real service dependencies with mocks.
     """
     from fastapi.testclient import TestClient
-    from src.main import app
-    from src.database.models import SessionLocal
+    from src.database.models import get_db
 
-    # We need to override the database session and services
-    # This depends on how the actual app is structured
+    # Override the database dependency to use our test session's engine
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass  # Don't close - let the fixture handle it
 
-    # For now, create a basic test client
-    # TODO: Implement proper dependency injection when services support it
+    test_app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
+    with TestClient(test_app) as test_client:
         yield test_client
+
+    # Clean up overrides
+    test_app.dependency_overrides.clear()
 
 
 # ==================== Sample Data Fixtures ====================

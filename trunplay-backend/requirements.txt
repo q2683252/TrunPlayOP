@@ -4,6 +4,6 @@ pydantic==1.10.13
 uvicorn==0.23.2
 sqlalchemy==1.4.50
 httpx==0.25.2
-pysmb==1.2.9.post1
+pysmb>=1.2.9
 python-multipart==0.0.6
 aiofiles==23.2.1
