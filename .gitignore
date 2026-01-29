@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.coverage
+coverage_html/
+*.db
+luci-dev/
+data/
