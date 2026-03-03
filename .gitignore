@@ -5,3 +5,11 @@ coverage_html/
 *.db
 luci-dev/
 data/
+
+# local artifacts
+.DS_Store
+.claude/
+.playwright-cli/
+.recovery_snippets/runtime/
+output/playwright/
+trunplay-backend/trunplay
