@@ -1,0 +1,13 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler_test.go
+@@
+ import (
+ 	"context"
++	"database/sql"
+ 	"errors"
+ 	"path/filepath"
+ 	"testing"
+@@
+-func openSchedulerTestDB(t *testing.T) *dbstore.DB {
++func openSchedulerTestDB(t *testing.T) *sql.DB {
+*** End Patch

@@ -1,0 +1,79 @@
+*** Begin Patch
+*** Update File: frontend-local/app/core/ui-feedback.js
+@@
+   const modalStack = [];
+   const buttonText = new WeakMap();
+   const MODAL_BASE_Z = 1000;
+   const MODAL_Z_STEP = 20;
+@@
+   function refreshModalStackZIndex() {
+     modalStack.forEach((modal, index) => {
+       modal.style.zIndex = String(MODAL_BASE_Z + (index * MODAL_Z_STEP));
+     });
+   }
++
++  function isModalVisible(modal) {
++    if (!modal) return false;
++    if (modal.getAttribute('aria-hidden') === 'true') return false;
++    if (modal.style.display === 'none') return false;
++    return window.getComputedStyle(modal).display !== 'none';
++  }
++
++  // Keep an internal stack even when some modals are toggled outside ui.openModal/ui.closeModal.
++  function syncModalStack(topModal = null) {
++    const visible = Array.from(document.querySelectorAll('.modal')).filter(isModalVisible);
++
++    const nextStack = modalStack.filter((modal) => visible.includes(modal));
++    visible.forEach((modal) => {
++      if (!nextStack.includes(modal)) nextStack.push(modal);
++    });
++
++    if (topModal && visible.includes(topModal)) {
++      const topIndex = nextStack.indexOf(topModal);
++      if (topIndex >= 0) nextStack.splice(topIndex, 1);
++      nextStack.push(topModal);
++    }
++
++    modalStack.length = 0;
++    nextStack.forEach((modal) => modalStack.push(modal));
++    refreshModalStackZIndex();
++  }
+@@
+   function openModal(idOrEl, triggerElement = null) {
+     const modal = typeof idOrEl === 'string' ? byId(idOrEl) : idOrEl;
+     if (!modal) return;
+ 
+     modal.style.display = 'flex';
+     modal.setAttribute('aria-hidden', 'false');
+-
+-    const index = modalStack.indexOf(modal);
+-    if (index >= 0) modalStack.splice(index, 1);
+-    modalStack.push(modal);
+-    refreshModalStackZIndex();
++    syncModalStack(modal);
+ 
+     modal._returnFocus = triggerElement || document.activeElement;
+     const autoFocus = modal.querySelector('input, select, textarea, button');
+     if (autoFocus) setTimeout(() => autoFocus.focus(), 0);
+   }
+@@
+     modal.style.display = 'none';
+     modal.setAttribute('aria-hidden', 'true');
+     modal.style.removeProperty('z-index');
+-
+-    const index = modalStack.indexOf(modal);
+-    if (index >= 0) modalStack.splice(index, 1);
+-    refreshModalStackZIndex();
++    syncModalStack();
+ 
+     if (modal._returnFocus && typeof modal._returnFocus.focus === 'function') {
+       modal._returnFocus.focus();
+     }
+   }
+ 
+   function closeTopModal() {
++    syncModalStack();
+     const top = modalStack[modalStack.length - 1];
+     if (top) closeModal(top);
+   }
+*** End Patch

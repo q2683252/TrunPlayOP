@@ -1,0 +1,120 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/media.go
+@@
+ import (
++	"net/url"
+ 	"net/http"
+ 	"os"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@
+ 	var merged []expandItem
+ 	for _, it := range req.Items {
+-		if it.URI != "" {
++		uriLower := strings.ToLower(strings.TrimSpace(it.URI))
++		if strings.HasPrefix(uriLower, "file://") {
+ 			// Local: file:///path or file:///mnt/folder
+ 			path := strings.TrimPrefix(it.URI, "file://")
+ 			path = strings.TrimPrefix(path, "/")
+ 			if path == "" {
+ 				continue
+ 			}
+ 			path = "/" + path
+-			pathAbs, err := filepath.Abs(path)
+-			if err != nil {
+-				logAPI.Warn("expand local abs", "path", path, "err", err)
++			pathAbs := resolvePathForAllowlist(path)
++			if pathAbs == "" {
++				logAPI.Warn("expand local abs", "path", path)
+ 				continue
+ 			}
+-			pathAbs, err = filepath.EvalSymlinks(pathAbs)
+-			if err != nil {
+-				pathAbs = filepath.Clean(path)
+-			}
+-			allowed := false
+-			for _, root := range roots {
+-				rootAbs, _ := filepath.Abs(root)
+-				rootAbs, _ = filepath.EvalSymlinks(rootAbs)
+-				if pathAbs == rootAbs || strings.HasPrefix(pathAbs, rootAbs+string(filepath.Separator)) {
+-					allowed = true
+-					break
+-				}
+-			}
+-			if !allowed {
++			if !isPathWithinRoots(pathAbs, roots) {
+ 				logAPI.Warn("expand local access denied", "path", pathAbs)
+ 				continue
+ 			}
+ 			if fi, err := os.Stat(pathAbs); err == nil && !fi.IsDir() {
+@@
+ 			}
+ 			items := expandLocalRecursive(pathAbs, roots, maxExpandFilesLocal)
+ 			merged = append(merged, items...)
+-		} else if it.ServerID != "" {
++		} else if it.ServerID != "" || strings.HasPrefix(uriLower, "smb://") {
+ 			// SMB: server_id + path (path empty = share root; when server share_path empty, path can be "share" or "share/subpath")
++			serverID := strings.TrimSpace(it.ServerID)
++			path := strings.Trim(it.Path, "/\\")
++			if strings.HasPrefix(uriLower, "smb://") {
++				if parsed, err := url.Parse(it.URI); err == nil {
++					if serverID == "" {
++						serverID = strings.TrimSpace(parsed.Host)
++					}
++					if path == "" {
++						path = strings.Trim(parsed.Path, "/\\")
++					}
++				}
++			}
++			if serverID == "" {
++				logAPI.Warn("expand smb missing server_id", "uri", it.URI, "path", path)
++				continue
++			}
+ 			database := getDB(c)
+ 			tx, err := database.Begin()
+ 			if err != nil {
+ 				logAPI.Error("expand smb begin", "err", err)
+ 				continue
+ 			}
+-			server, err := db.GetSmbServer(tx, it.ServerID)
++			server, err := db.GetSmbServer(tx, serverID)
+ 			tx.Rollback()
+ 			if err != nil || server == nil {
+-				logAPI.Warn("expand smb server not found", "server_id", it.ServerID)
++				logAPI.Warn("expand smb server not found", "server_id", serverID)
+ 				continue
+ 			}
+@@
+-			path := strings.Trim(it.Path, "/\\")
+ 			if shareName == "" {
+ 				if path == "" {
+ 					continue
+@@
+ 				sharePath = shareName
+ 			}
++			if shareName != "" && path != "" {
++				normalizedPath := strings.Trim(strings.ReplaceAll(path, "\\", "/"), "/")
++				if normalizedPath == shareName {
++					path = ""
++				} else if strings.HasPrefix(normalizedPath, shareName+"/") {
++					path = strings.TrimPrefix(normalizedPath, shareName+"/")
++				}
++			}
+ 			// Get original share_path from server to check if it was empty
+ 			origSharePath, _ := server["share_path"].(string)
+@@
+-						items, listErr := getSmb(c).ListFiles(c.Request.Context(), it.ServerID, host, port, username, password, sharePath, dir)
++						items, listErr := getSmb(c).ListFiles(c.Request.Context(), serverID, host, port, username, password, sharePath, dir)
+@@
+-							ServerID:     it.ServerID,
++							ServerID:     serverID,
+@@
+-			smbItems, err := getSmb(c).ListFilesRecursive(c.Request.Context(), it.ServerID, host, port, username, password, sharePath, path, maxExpandDepthSMB, maxExpandFilesSMB)
++			smbItems, err := getSmb(c).ListFilesRecursive(c.Request.Context(), serverID, host, port, username, password, sharePath, path, maxExpandDepthSMB, maxExpandFilesSMB)
+ 			if err != nil {
+-				logAPI.Warn("expand smb ListFilesRecursive", "server_id", it.ServerID, "path", path, "err", err)
++				logAPI.Warn("expand smb ListFilesRecursive", "server_id", serverID, "path", path, "err", err)
+ 				continue
+ 			}
+*** End Patch

@@ -16,6 +16,8 @@ from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import StreamingResponse
 import aiofiles
 
+from ..config import get_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,6 +78,8 @@ class MediaHttpServer:
         self._media_registry: Dict[str, MediaInfo] = {}
         self._local_ip: Optional[str] = None
         self._app: Optional[FastAPI] = None
+        self._config = get_config()
+        self._chunk_size = self._config.media_chunk_size
 
     @property
     def port(self) -> int:
@@ -272,10 +276,10 @@ class MediaHttpServer:
         self,
         file_path: str,
         start: int,
-        length: int,
-        chunk_size: int = 1024 * 1024  # 1MB chunks
+        length: int
     ):
-        """Stream local file with Range support."""
+        """Stream local file with Range support using configurable chunk size."""
+        chunk_size = self._chunk_size
         async with aiofiles.open(file_path, "rb") as f:
             await f.seek(start)
             remaining = length
@@ -292,10 +296,10 @@ class MediaHttpServer:
         self,
         media_info: MediaInfo,
         start: int,
-        length: int,
-        chunk_size: int = 1024 * 1024  # 1MB chunks
+        length: int
     ):
-        """Stream SMB file with Range support."""
+        """Stream SMB file with Range support using configurable chunk size."""
+        chunk_size = self._chunk_size
         from .smb_client import get_smb_client
 
         smb_client = get_smb_client()

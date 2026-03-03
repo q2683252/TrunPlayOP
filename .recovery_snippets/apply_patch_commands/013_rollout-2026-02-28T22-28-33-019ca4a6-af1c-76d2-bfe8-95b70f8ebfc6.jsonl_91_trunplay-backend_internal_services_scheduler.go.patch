@@ -1,0 +1,159 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler.go
+@@
+-// triggerPlan executes a single plan's playback and marks it as triggered today.
+-func (s *Scheduler) triggerPlan(plan map[string]interface{}, todayStr string) {
+-	planID, _ := plan["id"].(string)
+-	planTitle, _ := plan["title"].(string)
+-	if planID == "" {
+-		return
+-	}
+-
+-	// Mark triggered FIRST in a separate committed tx so that even if StartPlayback
+-	// fails (e.g. study task deleted), we won't retry every 10 seconds all day.
+-	markTx, err := s.db.Begin()
+-	if err != nil {
+-		logScheduler.Error("triggerPlan begin mark tx", "plan_id", planID, "err", err)
+-		return
+-	}
+-	if err := db.UpdatePlanLastTriggeredDate(markTx, planID, todayStr); err != nil {
+-		_ = markTx.Rollback()
+-		logScheduler.Error("triggerPlan mark triggered", "plan_id", planID, "err", err)
+-		return
+-	}
+-	if err := markTx.Commit(); err != nil {
+-		logScheduler.Error("triggerPlan mark commit failed", "plan_id", planID, "err", err)
+-		return
+-	}
+-
+-	// Now start playback in a new tx.
+-	tx, err := s.db.Begin()
+-	if err != nil {
+-		logScheduler.Error("triggerPlan begin tx", "plan_id", planID, "err", err)
+-		return
+-	}
+-
+-	// Re-read plan within this tx (fresh data).
+-	freshPlan, err := db.GetPlan(tx, planID)
+-	if err != nil || freshPlan == nil {
+-		_ = tx.Rollback()
+-		logScheduler.Warn("triggerPlan plan disappeared", "plan_id", planID)
+-		return
+-	}
+-	if active, ok := freshPlan["is_active"].(bool); ok && !active {
+-		_ = tx.Rollback()
+-		logScheduler.Info("triggerPlan plan inactive", "plan_id", planID)
+-		return
+-	}
+-
+-	deviceID, _ := freshPlan["device_id"].(string)
+-	mediaURL, _ := freshPlan["media_url"].(string)
+-	endTime, _ := freshPlan["end_time"].(string)
+-	durationSeconds := computeStopDurationSeconds(endTime, s.now())
+-
+-	logScheduler.Info("scheduler trigger plan", "plan_id", planID, "title", planTitle,
+-		"device_id", deviceID, "media_url", mediaURL, "duration_seconds", durationSeconds)
+-
+-	startCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+-	defer cancel()
+-	success, err := s.playback.StartPlayback(startCtx, tx, freshPlan, "SCHEDULE", 0, durationSeconds)
+-	if err != nil || !success {
+-		_ = tx.Rollback()
+-		logScheduler.Error("triggerPlan StartPlayback failed", "plan_id", planID,
+-			"err", fmt.Sprintf("%v", err), "success", success)
+-		return
+-	}
+-
+-	if err := tx.Commit(); err != nil {
+-		logScheduler.Error("triggerPlan commit failed", "plan_id", planID, "err", err)
+-	}
+-}
++// triggerPlan executes a single plan's playback.
++// It marks last_triggered_date on success, and marks on deterministic config
++// errors to avoid retry storms.
++func (s *Scheduler) triggerPlan(plan map[string]interface{}, todayStr string) {
++	planID, _ := plan["id"].(string)
++	planTitle, _ := plan["title"].(string)
++	if planID == "" {
++		return
++	}
++
++	tx, err := s.db.Begin()
++	if err != nil {
++		logScheduler.Error("triggerPlan begin tx", "plan_id", planID, "err", err)
++		return
++	}
++
++	// Re-read plan within this tx (fresh data).
++	freshPlan, err := db.GetPlan(tx, planID)
++	if err != nil || freshPlan == nil {
++		_ = tx.Rollback()
++		logScheduler.Warn("triggerPlan plan disappeared", "plan_id", planID)
++		return
++	}
++	if active, ok := freshPlan["is_active"].(bool); ok && !active {
++		_ = tx.Rollback()
++		logScheduler.Info("triggerPlan plan inactive", "plan_id", planID)
++		return
++	}
++
++	deviceID, _ := freshPlan["device_id"].(string)
++	mediaURL, _ := freshPlan["media_url"].(string)
++	endTime, _ := freshPlan["end_time"].(string)
++	durationSeconds := computeStopDurationSeconds(endTime, s.now())
++
++	logScheduler.Info("scheduler trigger plan", "plan_id", planID, "title", planTitle,
++		"device_id", deviceID, "media_url", mediaURL, "duration_seconds", durationSeconds)
++
++	startCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
++	defer cancel()
++	success, err := s.playback.StartPlayback(startCtx, tx, freshPlan, "SCHEDULE", 0, durationSeconds)
++	if err != nil || !success {
++		_ = tx.Rollback()
++		if shouldMarkTriggeredOnStartError(err) {
++			s.markTriggeredDate(planID, todayStr)
++		}
++		logScheduler.Error("triggerPlan StartPlayback failed", "plan_id", planID,
++			"err", fmt.Sprintf("%v", err), "success", success)
++		return
++	}
++
++	if err := db.UpdatePlanLastTriggeredDate(tx, planID, todayStr); err != nil {
++		_ = tx.Rollback()
++		logScheduler.Error("triggerPlan mark triggered", "plan_id", planID, "err", err)
++		return
++	}
++
++	if err := tx.Commit(); err != nil {
++		logScheduler.Error("triggerPlan commit failed", "plan_id", planID, "err", err)
++	}
++}
++
++func shouldMarkTriggeredOnStartError(err error) bool {
++	if err == nil {
++		return false
++	}
++	return errors.Is(err, ErrPlanNoDevice) ||
++		errors.Is(err, ErrInvalidMediaURL) ||
++		errors.Is(err, ErrPlanNoPlayableMedia) ||
++		errors.Is(err, ErrStudyTaskNotFound) ||
++		errors.Is(err, ErrStudyTaskNoMedia) ||
++		errors.Is(err, ErrSmbServerNotFound)
++}
++
++func (s *Scheduler) markTriggeredDate(planID, todayStr string) {
++	markTx, err := s.db.Begin()
++	if err != nil {
++		logScheduler.Error("markTriggeredDate begin tx", "plan_id", planID, "err", err)
++		return
++	}
++	if err := db.UpdatePlanLastTriggeredDate(markTx, planID, todayStr); err != nil {
++		_ = markTx.Rollback()
++		logScheduler.Error("markTriggeredDate update", "plan_id", planID, "err", err)
++		return
++	}
++	if err := markTx.Commit(); err != nil {
++		logScheduler.Error("markTriggeredDate commit", "plan_id", planID, "err", err)
++	}
++}
+*** End Patch

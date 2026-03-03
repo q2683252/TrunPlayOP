@@ -12,7 +12,7 @@ class TestSystemAPI:
         """GET /system/status should return system status."""
         response = client.get("/api/v1/system/status")
         assert response.status_code == 200
-        data = response.json()["data"]
+        data = response.json()
         assert "version" in data
         assert "playback_status" in data
 
@@ -20,13 +20,13 @@ class TestSystemAPI:
         """GET /system/health should return health status."""
         response = client.get("/api/v1/system/health")
         assert response.status_code == 200
-        assert response.json()["data"]["status"] == "ok"
+        assert response.json()["status"] == "ok"
 
     def test_get_config(self, client):
         """GET /system/config should return configuration."""
         response = client.get("/api/v1/system/config")
         assert response.status_code == 200
-        data = response.json()["data"]
+        data = response.json()
         assert "api_port" in data
         assert "media_port" in data
         assert "local_media_paths" in data
@@ -40,7 +40,7 @@ class TestRootEndpoints:
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert "name" in data or "version" in data
+        assert "message" in data or "version" in data
 
     def test_health_endpoint(self, client):
         """GET /health should return health status."""

@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/onboarding/index.js
+@@
+     const studyReady = (state.entities.studyTasks || []).length > 0;
+     const planReady = (state.entities.plans || []).length > 0;
++    const historyTotal = Number(state.entities.history?.total || 0);
+     const playback = state.entities.playback || {};
+-    const played = ['playing', 'paused'].includes(String(playback.status || '').toLowerCase());
++    const played = ['playing', 'paused'].includes(String(playback.status || '').toLowerCase()) || historyTotal > 0;
+*** End Patch

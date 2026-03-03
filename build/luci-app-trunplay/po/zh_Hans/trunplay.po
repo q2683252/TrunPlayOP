@@ -1,0 +1,95 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "TrunPlay 定时投屏"
+msgstr ""
+
+msgid "首页"
+msgstr ""
+
+msgid "播放计划"
+msgstr ""
+
+msgid "设备管理"
+msgstr ""
+
+msgid "SMB 存储"
+msgstr ""
+
+msgid "学习任务"
+msgstr ""
+
+msgid "播放历史"
+msgstr ""
+
+msgid "设置"
+msgstr ""
+
+msgid "服务状态"
+msgstr ""
+
+msgid "后端服务"
+msgstr ""
+
+msgid "活动计划"
+msgstr ""
+
+msgid "已发现设备"
+msgstr ""
+
+msgid "播放状态"
+msgstr ""
+
+msgid "正在播放"
+msgstr ""
+
+msgid "已停止"
+msgstr ""
+
+msgid "刷新"
+msgstr ""
+
+msgid "运行中"
+msgstr ""
+
+msgid "未运行"
+msgstr ""
+
+msgid "加载中..."
+msgstr ""
+
+msgid "检查中..."
+msgstr ""
+
+msgid "暂无数据"
+msgstr ""
+
+msgid "名称"
+msgstr ""
+
+msgid "保存"
+msgstr ""
+
+msgid "取消"
+msgstr ""
+
+msgid "删除"
+msgstr ""
+
+msgid "编辑"
+msgstr ""
+
+msgid "操作"
+msgstr ""
+
+msgid "状态"
+msgstr ""
+
+msgid "时间"
+msgstr ""
+
+msgid "设备"
+msgstr ""
+
+msgid "播放时长"
+msgstr ""

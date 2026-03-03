@@ -298,7 +298,8 @@ class DlnaManager:
             if is_online:
                 device.last_seen = int(time.time() * 1000)
             return is_online
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Device ping failed for {device.name}: {e}")
             device.is_online = False
             return False
 

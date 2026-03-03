@@ -32,12 +32,14 @@ from tests.utils import LogCapture, Factory
 
 # ==================== Database Fixtures ====================
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def db_engine():
     """Create an in-memory SQLite database engine."""
+    from sqlalchemy.pool import StaticPool
     engine = create_engine(
         "sqlite:///:memory:",
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool  # Use single connection for in-memory DB
     )
     return engine
 
@@ -116,29 +118,29 @@ def log_capture(request) -> Generator[LogCapture, None, None]:
 
 # ==================== API Client Fixture ====================
 
-@pytest.fixture(scope="module")
-def test_app():
+@pytest.fixture(scope="function")
+def test_app(db_engine):
     """
     Create a FastAPI app for testing without lifespan.
     This avoids starting real services during tests.
     """
     from fastapi import FastAPI
     from fastapi.middleware.cors import CORSMiddleware
-    from src.database.models import init_db
+    from src.database.models import Base
     from src.api import plans, devices, smb, media, playback, study, history, system
 
-    # Ensure database is initialized
-    init_db()
+    # Create all tables on the test engine
+    Base.metadata.create_all(db_engine)
 
     # Create a test app without lifespan (no real services started)
-    test_app = FastAPI(
+    app = FastAPI(
         title="TrunPlay API (Test)",
         description="TrunPlay Test Instance",
         version="1.0.0-test"
     )
 
     # Add CORS middleware
-    test_app.add_middleware(
+    app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
         allow_credentials=True,
@@ -147,43 +149,48 @@ def test_app():
     )
 
     # Include API routers
-    test_app.include_router(plans.router, prefix="/api/v1", tags=["plans"])
-    test_app.include_router(devices.router, prefix="/api/v1", tags=["devices"])
-    test_app.include_router(smb.router, prefix="/api/v1", tags=["smb"])
-    test_app.include_router(media.router, prefix="/api/v1", tags=["media"])
-    test_app.include_router(playback.router, prefix="/api/v1", tags=["playback"])
-    test_app.include_router(study.router, prefix="/api/v1", tags=["study"])
-    test_app.include_router(history.router, prefix="/api/v1", tags=["history"])
-    test_app.include_router(system.router, prefix="/api/v1", tags=["system"])
+    app.include_router(plans.router, prefix="/api/v1", tags=["plans"])
+    app.include_router(devices.router, prefix="/api/v1", tags=["devices"])
+    app.include_router(smb.router, prefix="/api/v1", tags=["smb"])
+    app.include_router(media.router, prefix="/api/v1", tags=["media"])
+    app.include_router(playback.router, prefix="/api/v1", tags=["playback"])
+    app.include_router(study.router, prefix="/api/v1", tags=["study"])
+    app.include_router(history.router, prefix="/api/v1", tags=["history"])
+    app.include_router(system.router, prefix="/api/v1", tags=["system"])
 
     # Root endpoints
-    @test_app.get("/")
+    @app.get("/")
     async def root():
         return {"message": "TrunPlay API", "version": "1.0.0-test"}
 
-    @test_app.get("/health")
+    @app.get("/health")
     async def health():
         return {"status": "ok"}
 
-    return test_app
+    return app
 
 
 @pytest.fixture
-def client(test_app, db_session, mock_dlna, mock_smb, mock_scheduler):
+def client(test_app, db_engine, mock_dlna, mock_smb, mock_scheduler):
     """
     Create a FastAPI TestClient with all mocks injected.
 
     This fixture overrides the real service dependencies with mocks.
     """
     from fastapi.testclient import TestClient
+    from sqlalchemy.orm import sessionmaker
     from src.database.models import get_db
 
-    # Override the database dependency to use our test session's engine
+    # Create session factory for test database
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
+
+    # Override the database dependency to use our test session
     def override_get_db():
+        db = TestSessionLocal()
         try:
-            yield db_session
+            yield db
         finally:
-            pass  # Don't close - let the fixture handle it
+            db.close()
 
     test_app.dependency_overrides[get_db] = override_get_db
 

@@ -13,8 +13,8 @@ class TestMediaAPI:
         response = client.get("/api/v1/media/local")
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 0
-        assert "items" in data["data"]
+        assert "items" in data
+        assert "path" in data
 
     def test_browse_local_with_path(self, client):
         """GET /media/local?path=/mnt should browse specific path."""
@@ -63,7 +63,7 @@ class TestMediaPathSecurity:
         """Hidden files (starting with .) should not be listed."""
         response = client.get("/api/v1/media/local")
         if response.status_code == 200:
-            items = response.json()["data"]["items"]
+            items = response.json()["items"]
             for item in items:
                 assert not item["name"].startswith(".")
 

@@ -307,8 +307,14 @@ class SmbClient:
         """
         Get file stream for HTTP serving.
         Returns a BytesIO object containing file data.
-        For large files, consider using chunk-based streaming.
+
+        WARNING: This method loads the entire file into memory and should NOT be used
+        for large files (videos, etc.) as it can cause memory exhaustion.
+        Use stream_file_chunks() or retrieveFileFromOffset() in a loop instead.
+
+        DEPRECATED: This method is kept for backward compatibility but should not be used.
         """
+        logger.warning(f"get_file_stream is deprecated and loads entire file into memory. Use chunked streaming instead.")
         try:
             conn = self._get_connection(host, username, password, port, server_name)
             if not conn:

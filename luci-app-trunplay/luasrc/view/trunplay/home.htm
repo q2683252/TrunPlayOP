@@ -1,227 +1,244 @@
-<%#
-TrunPlay - Home/Status Page
-Displays current playback status and quick controls
-%>
+<%# TrunPlay - Home/Status Page Displays current playback status and quick controls %>
 
-<%+header%>
+    <%+header%>
+        <%+trunplay/custom_css%>
+        <%+trunplay/common_js%>
 
-<h2><%:TrunPlay 定时投屏%></h2>
+            <h2>
+                <%:TrunPlay 定时投屏%>
+            </h2>
 
-<div class="cbi-section">
-    <h3><%:当前状态%></h3>
-    <div class="cbi-section-node">
-        <div id="playback-status" class="cbi-value">
-            <label class="cbi-value-title"><%:播放状态%></label>
-            <div class="cbi-value-field">
-                <span id="status-text"><%:加载中...%></span>
-            </div>
-        </div>
-        <div id="current-device" class="cbi-value" style="display:none;">
-            <label class="cbi-value-title"><%:当前设备%></label>
-            <div class="cbi-value-field">
-                <span id="device-name">-</span>
-            </div>
-        </div>
-        <div id="current-media" class="cbi-value" style="display:none;">
-            <label class="cbi-value-title"><%:正在播放%></label>
-            <div class="cbi-value-field">
-                <span id="media-name">-</span>
-            </div>
-        </div>
-        <div id="playback-progress" class="cbi-value" style="display:none;">
-            <label class="cbi-value-title"><%:播放进度%></label>
-            <div class="cbi-value-field">
-                <span id="progress-text">00:00 / 00:00</span>
-                <div style="margin-top:5px;">
-                    <progress id="progress-bar" value="0" max="100" style="width:200px;"></progress>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="label">
+                        <%:服务状态%>
+                    </div>
+                    <div class="value" id="service-status-card">
+                        <span id="service-status" class="status-badge">
+                            <%:检查中...%>
+                        </span>
+                    </div>
+                    <div class="sub-value" id="local-ip">IP: -</div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="label">
+                        <%:播放状态%>
+                    </div>
+                    <div class="value">
+                        <span id="status-text" class="status-badge">
+                            <%:加载中...%>
+                        </span>
+                    </div>
+                    <div class="sub-value" id="device-name">-</div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="label">
+                        <%:数据库%>
+                    </div>
+                    <div class="value" id="db-size">-</div>
+                    <div class="sub-value">
+                        <%:存储占用%>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="cbi-section" id="controls-section" style="display:none;">
-    <h3><%:播放控制%></h3>
-    <div class="cbi-section-node">
-        <div class="cbi-value">
-            <div class="cbi-value-field">
-                <button class="cbi-button cbi-button-action" onclick="trunplay.pause()"><%:暂停%></button>
-                <button class="cbi-button cbi-button-action" onclick="trunplay.resume()"><%:继续%></button>
-                <button class="cbi-button cbi-button-remove" onclick="trunplay.stop()"><%:停止%></button>
+            <div class="cbi-section" id="playback-panel" style="display:none;">
+                <h3>
+                    <%:正在播放%>
+                </h3>
+
+                <div style="margin-bottom: 1.5rem;">
+                    <div style="font-size: 1.1rem; font-weight: 600; color: var(--tp-text); margin-bottom: 0.5rem;"
+                        id="media-name">
+                        -
+                    </div>
+
+                    <div
+                        style="display: flex; justify-content: space-between; color: var(--tp-text-light); font-size: 0.875rem; margin-bottom: 0.5rem;">
+                        <span id="current-time">00:00</span>
+                        <span id="total-time">00:00</span>
+                    </div>
+
+                    <div class="progress-container">
+                        <div id="progress-bar-fill" class="progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div
+                    style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="playback-pause-btn" class="cbi-button cbi-button-action" onclick="trunplay.pause()">
+                            <%:暂停%>
+                        </button>
+                        <button id="playback-resume-btn" class="cbi-button cbi-button-action" onclick="trunplay.resume()">
+                            <%:继续%>
+                        </button>
+                        <button id="playback-stop-btn" class="cbi-button cbi-button-remove" onclick="trunplay.stop()">
+                            <%:停止%>
+                        </button>
+                    </div>
+
+                    <div
+                        style="display: flex; align-items: center; gap: 1rem; flex: 1; min-width: 200px; max-width: 300px;">
+                        <span style="color: var(--tp-text-light); font-size: 0.875rem;">
+                            <%:音量%>
+                        </span>
+                        <input type="range" id="volume-slider" min="0" max="100" value="50"
+                            oninput="trunplay.previewVolume(this.value)" onchange="trunplay.setVolume(this.value)">
+                        <span id="volume-value" style="width: 2.5rem; text-align: right; font-weight: 600;">50</span>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:音量%></label>
-            <div class="cbi-value-field">
-                <input type="range" id="volume-slider" min="0" max="100" value="50" style="width:150px;" onchange="trunplay.setVolume(this.value)">
-                <span id="volume-value">50</span>%
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="cbi-section">
-    <h3><%:系统信息%></h3>
-    <div class="cbi-section-node">
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:服务状态%></label>
-            <div class="cbi-value-field">
-                <span id="service-status"><%:检查中...%></span>
-            </div>
-        </div>
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:本机 IP%></label>
-            <div class="cbi-value-field">
-                <span id="local-ip">-</span>
-            </div>
-        </div>
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:数据库大小%></label>
-            <div class="cbi-value-field">
-                <span id="db-size">-</span>
-            </div>
-        </div>
-    </div>
-</div>
+            <script type="text/javascript">
+                //<![CDATA[
+                var trunplay = {
+                    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
 
-<script type="text/javascript">
-//<![CDATA[
-var trunplay = {
-    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+                    api: function (path, method, body, callback) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('POST', this.apiBase, true);
+                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                        xhr.onreadystatechange = function () {
+                            if (xhr.readyState === 4) {
+                                var data = null;
+                                try { data = JSON.parse(xhr.responseText); } catch (e) { }
+                                if (callback) callback(data, xhr.status);
+                            }
+                        };
+                        var params = 'path=' + encodeURIComponent(path);
+                        if (method) params += '&method=' + encodeURIComponent(method);
+                        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+                        xhr.send(params);
+                    },
 
-    api: function(path, method, body, callback) {
-        var xhr = new XMLHttpRequest();
-        var url = this.apiBase + '?path=' + encodeURIComponent(path);
-        if (method) url += '&method=' + method;
-        xhr.open('POST', url, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                var data = null;
-                try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                if (callback) callback(data, xhr.status);
-            }
-        };
-        var params = 'path=' + encodeURIComponent(path);
-        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
-        xhr.send(params);
-    },
+                    formatTime: function (seconds) {
+                        var h = Math.floor(seconds / 3600);
+                        var m = Math.floor((seconds % 3600) / 60);
+                        var s = seconds % 60;
+                        if (h > 0) {
+                            return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                        }
+                        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                    },
 
-    formatTime: function(seconds) {
-        var h = Math.floor(seconds / 3600);
-        var m = Math.floor((seconds % 3600) / 60);
-        var s = seconds % 60;
-        if (h > 0) {
-            return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-        }
-        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-    },
+                    formatSize: function (bytes) {
+                        var units = ['B', 'KB', 'MB', 'GB'];
+                        var i = 0;
+                        while (bytes >= 1024 && i < units.length - 1) {
+                            bytes /= 1024;
+                            i++;
+                        }
+                        return bytes.toFixed(1) + ' ' + units[i];
+                    },
 
-    formatSize: function(bytes) {
-        var units = ['B', 'KB', 'MB', 'GB'];
-        var i = 0;
-        while (bytes >= 1024 && i < units.length - 1) {
-            bytes /= 1024;
-            i++;
-        }
-        return bytes.toFixed(1) + ' ' + units[i];
-    },
+                    updateStatus: function () {
+                        var self = this;
 
-    updateStatus: function() {
-        var self = this;
+                        // Get playback status
+                        this.api('/playback/status', 'GET', null, function (data) {
+                            var statusEl = document.getElementById('status-text');
+                            var serviceEl = document.getElementById('service-status');
 
-        // Get playback status
-        this.api('/playback/status', 'GET', null, function(data) {
-            if (!data) {
-                document.getElementById('status-text').textContent = '后端服务未响应';
-                document.getElementById('service-status').textContent = '离线';
-                return;
-            }
+                            if (!data) {
+                                statusEl.textContent = '后端服务未响应';
+                                statusEl.className = 'status-badge error';
+                                serviceEl.textContent = '离线';
+                                serviceEl.className = 'status-badge error';
+                                return;
+                            }
 
-            document.getElementById('service-status').textContent = '运行中';
+                            serviceEl.textContent = '运行中';
+                            serviceEl.className = 'status-badge online';
 
-            var status = data.status || 'STOPPED';
-            var statusText = {
-                'STOPPED': '已停止',
-                'LOADING': '加载中',
-                'PLAYING': '播放中',
-                'PAUSED': '已暂停',
-                'ERROR': '错误'
-            };
+                            var status = data.status || 'STOPPED';
+                            var statusText = {
+                                'STOPPED': '已停止',
+                                'LOADING': '加载中',
+                                'PLAYING': '播放中',
+                                'PAUSED': '已暂停',
+                                'ERROR': '错误'
+                            };
 
-            document.getElementById('status-text').textContent = statusText[status] || status;
+                            statusEl.textContent = statusText[status] || status;
 
-            if (status === 'PLAYING' || status === 'PAUSED') {
-                document.getElementById('controls-section').style.display = '';
-                document.getElementById('current-device').style.display = '';
-                document.getElementById('current-media').style.display = '';
-                document.getElementById('playback-progress').style.display = '';
+                            // Update badge color based on status
+                            if (status === 'PLAYING') statusEl.className = 'status-badge playing';
+                            else if (status === 'PAUSED') statusEl.className = 'status-badge paused';
+                            else if (status === 'ERROR') statusEl.className = 'status-badge error';
+                            else statusEl.className = 'status-badge stopped';
 
-                document.getElementById('device-name').textContent = data.device_name || '-';
-                document.getElementById('media-name').textContent = data.media_name || '-';
+                            if (status === 'PLAYING' || status === 'PAUSED') {
+                                document.getElementById('playback-panel').style.display = 'block';
 
-                var pos = data.position || 0;
-                var dur = data.duration || 0;
-                document.getElementById('progress-text').textContent =
-                    self.formatTime(pos) + ' / ' + self.formatTime(dur);
+                                document.getElementById('device-name').textContent = data.device_name || '-';
+                                document.getElementById('media-name').textContent = data.media_name || '未知媒体';
 
-                var pct = dur > 0 ? (pos / dur * 100) : 0;
-                document.getElementById('progress-bar').value = pct;
+                                var pos = data.position || 0;
+                                var dur = data.duration || 0;
 
-                document.getElementById('volume-slider').value = data.volume || 50;
-                document.getElementById('volume-value').textContent = data.volume || 50;
-            } else {
-                document.getElementById('controls-section').style.display = 'none';
-                document.getElementById('current-device').style.display = 'none';
-                document.getElementById('current-media').style.display = 'none';
-                document.getElementById('playback-progress').style.display = 'none';
-            }
-        });
+                                document.getElementById('current-time').textContent = self.formatTime(pos);
+                                document.getElementById('total-time').textContent = self.formatTime(dur);
 
-        // Get system status
-        this.api('/system/status', 'GET', null, function(data) {
-            if (data) {
-                document.getElementById('local-ip').textContent = data.local_ip || '-';
-                document.getElementById('db-size').textContent = self.formatSize(data.db_size || 0);
-            }
-        });
-    },
+                                var pct = dur > 0 ? (pos / dur * 100) : 0;
+                                document.getElementById('progress-bar-fill').style.width = pct + '%';
 
-    pause: function() {
-        this.api('/playback/pause', 'POST', {}, function() {
-            trunplay.updateStatus();
-        });
-    },
+                                document.getElementById('volume-slider').value = data.volume || 50;
+                                document.getElementById('volume-value').textContent = data.volume || 50;
+                            } else {
+                                document.getElementById('playback-panel').style.display = 'none';
+                                document.getElementById('device-name').textContent = '-';
+                            }
+                        });
 
-    resume: function() {
-        this.api('/playback/resume', 'POST', {}, function() {
-            trunplay.updateStatus();
-        });
-    },
+                        // Get system status
+                        this.api('/system/status', 'GET', null, function (data) {
+                            if (data) {
+                                document.getElementById('local-ip').textContent = 'IP: ' + (data.local_ip || '-');
+                                document.getElementById('db-size').textContent = self.formatSize(data.db_size || 0);
+                            }
+                        });
+                    },
 
-    stop: function() {
-        if (confirm('确定要停止播放吗？')) {
-            this.api('/playback/stop', 'POST', {}, function() {
-                trunplay.updateStatus();
-            });
-        }
-    },
+                    pause: function () {
+                        this.api('/playback/pause', 'POST', {}, function () {
+                            trunplay.updateStatus();
+                        });
+                    },
 
-    setVolume: function(level) {
-        document.getElementById('volume-value').textContent = level;
-        this.api('/playback/volume', 'POST', {level: parseInt(level)}, function() {});
-    },
+                    resume: function () {
+                        this.api('/playback/resume', 'POST', {}, function () {
+                            trunplay.updateStatus();
+                        });
+                    },
 
-    init: function() {
-        this.updateStatus();
-        setInterval(function() { trunplay.updateStatus(); }, 5000);
-    }
-};
+                    stop: function () {
+                        if (confirm('确定要停止播放吗？')) {
+                            this.api('/playback/stop', 'POST', {}, function () {
+                                trunplay.updateStatus();
+                            });
+                        }
+                    },
 
-document.addEventListener('DOMContentLoaded', function() {
-    trunplay.init();
-});
-//]]>
-</script>
+                    setVolume: function (level) {
+                        var parsed = parseInt(level, 10);
+                        if (!isFinite(parsed)) parsed = 50;
+                        this.previewVolume(parsed);
+                        this.api('/playback/volume', 'POST', { level: parsed }, function () { });
+                    },
 
-<%+footer%>
+                    init: function () {
+                        this.updateStatus();
+                        setInterval(function () { trunplay.updateStatus(); }, 5000);
+                    }
+                };
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    trunplay.init();
+                });
+                //]]>
+            </script>
+
+            <%+footer%>

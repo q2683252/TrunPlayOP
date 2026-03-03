@@ -1,0 +1,36 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/plans/index.js
+@@
+   async function startPlanPlay(planId, durationSeconds, button) {
+     if (!planId) return;
+     if (playRequestInFlight) {
+       app.ui.toast('info', '正在发起播放，请稍候...');
+       return;
+     }
+ 
+     const now = Date.now();
+     if (now < playFailureCooldownUntil) {
+-      app.ui.toast('warning', '设备尚未恢复，请先扫描设备后再试');
+-      return;
++      app.ui.toast('info', '检测到上次播放失败，正在重新尝试...');
+     }
+ 
+     const planCooldownUntil = Number(planPlayCooldownUntil.get(planId) || 0);
+     if (now < planCooldownUntil) {
+-      app.ui.toast('warning', '该计划设备尚未恢复，请先扫描设备后再试');
+-      return;
++      app.ui.toast('info', '该计划设备状态未稳定，正在重新尝试...');
+     }
+@@
+     try {
+       const ready = await isPlanDeviceReady(planId);
+       if (!ready) {
+-        app.ui.toast('warning', '目标设备离线，请先扫描并确认设备在线');
+-        return;
++        // Device status can be stale in cache. Let backend perform final check
++        // with discovery fallback so manual play is not blocked by false negatives.
++        app.ui.toast('info', '设备状态未确认，正在直接尝试播放...');
+       }
+ 
+       await requestPlanPlay(planId, durationSeconds);
+*** End Patch

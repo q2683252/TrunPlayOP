@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/db/crud.go
+@@
+-	orderByExpr := orderBy
+-	if strings.Contains(orderByExpr, "played_") || strings.Contains(orderByExpr, "media_") || strings.Contains(orderByExpr, "device_") || strings.Contains(orderByExpr, "actual_") {
+-		orderByExpr = "h." + orderByExpr
+-	} else if strings.Contains(orderByExpr, "CASE WHEN") {
+-		orderByExpr = strings.ReplaceAll(orderByExpr, "played_", "h.played_")
+-	}
++	orderByExpr := "h.actual_start_time"
++	switch q.OrderBy {
++	case "progress":
++		orderByExpr = "CASE WHEN h.played_position > 0 THEN h.played_position ELSE h.played_duration END"
++	case "media_name":
++		orderByExpr = "h.media_name"
++	case "device_name":
++		orderByExpr = "h.device_name"
++	default:
++		orderByExpr = "h.actual_start_time"
++	}
+*** End Patch

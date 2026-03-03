@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrunPlay 本地控制台</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http://www.w3.org/2000/svg%22%20viewBox%3D%220%200%2016%2016%22%3E%3Crect%20width%3D%2216%22%20height%3D%2216%22%20rx%3D%223%22%20fill%3D%22%230f766e%22/%3E%3Cpath%20d%3D%22M4%204.5h2.2l2.4%203.2v-3.2H11v7H8.8L6.4%208.3v3.2H4z%22%20fill%3D%22white%22/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="styles.css?v=20260228a">
+</head>
+<body>
+  <div class="tp-shell">
+    <header class="tp-header">
+      <div class="tp-brand-wrap">
+        <p class="tp-brand-kicker">Local Control Hub</p>
+        <h1>TrunPlay 定时投屏</h1>
+      </div>
+      <nav class="nav" aria-label="主导航">
+        <button type="button" class="nav-btn active" data-page="status">状态总览</button>
+        <button type="button" class="nav-btn" data-page="study">学习任务</button>
+        <button type="button" class="nav-btn" data-page="devices">设备管理</button>
+        <button type="button" class="nav-btn" data-page="smb">SMB 存储</button>
+        <button type="button" class="nav-btn" data-page="history">播放历史</button>
+      </nav>
+    </header>
+
+    <main class="tp-main">
+      <section id="page-status" class="page active">
+        <article id="onboarding-panel" class="tp-onboarding" style="display:none;">
+          <div class="tp-onboarding-head">
+            <div>
+              <p class="tp-onboarding-kicker">首次使用引导</p>
+              <h2>五步完成可复用播放闭环</h2>
+            </div>
+            <button type="button" id="onboarding-dismiss" class="cbi-button">稍后处理</button>
+          </div>
+          <p id="onboarding-summary" class="tp-onboarding-summary"></p>
+          <ol id="onboarding-steps" class="tp-onboarding-steps"></ol>
+        </article>
+
+        <div class="dashboard-grid">
+          <article class="dashboard-card">
+            <div class="label">服务状态</div>
+            <div class="value"><span id="service-status" class="status-badge">检查中...</span></div>
+            <div class="sub-value" id="local-ip">IP: -</div>
+          </article>
+          <article class="dashboard-card">
+            <div class="label">播放状态</div>
+            <div class="value"><span id="playback-status" class="status-badge">加载中...</span></div>
+            <div class="sub-value" id="device-name">-</div>
+          </article>
+          <article class="dashboard-card">
+            <div class="label">数据库占用</div>
+            <div class="value" id="db-size">-</div>
+            <div class="sub-value">播放与计划数据</div>
+          </article>
+        </div>
+
+        <section class="cbi-section" id="playback-panel" style="display:none;">
+          <h3>正在播放</h3>
+          <div class="media-name" id="media-name">-</div>
+          <div class="progress-row">
+            <span id="current-time">00:00</span>
+            <span id="total-time">00:00</span>
+          </div>
+          <div class="progress-container">
+            <div id="progress-bar-fill" class="progress-bar" style="width:0%"></div>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="cbi-button cbi-button-action" data-action="pause">暂停</button>
+            <button type="button" class="cbi-button cbi-button-action" data-action="resume">继续</button>
+            <button type="button" class="cbi-button cbi-button-remove" data-action="stop">停止</button>
+          </div>
+          <div class="volume-row">
+            <span>音量</span>
+            <input type="range" id="volume-slider" min="0" max="100" value="50">
+            <span id="volume-value">50</span>
+          </div>
+        </section>
+
+        <section class="cbi-section section-table">
+          <div class="tp-plan-header">
+            <div>
+              <div class="tp-plan-title">计划列表</div>
+              <p class="tp-section-subtitle">集中管理每日计划并快速触发播放</p>
+            </div>
+            <div class="tp-plan-actions">
+              <button type="button" class="cbi-button cbi-button-add" id="btn-add-plan">新建计划</button>
+              <button type="button" class="cbi-button" id="btn-refresh-plans">刷新</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="cbi-section-table" id="plans-table">
+              <thead>
+                <tr><th>标题</th><th>学习任务</th><th>开始时间</th><th>重复日期</th><th>进度</th><th>状态</th><th>操作</th></tr>
+              </thead>
+              <tbody id="plans-tbody">
+                <tr><td colspan="7">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="page-study" class="page" hidden>
+        <section class="cbi-section section-toolbar">
+          <div class="cbi-section-node actions">
+            <button type="button" class="cbi-button cbi-button-add" id="btn-add-study-task">新建学习任务</button>
+            <button type="button" class="cbi-button" id="btn-refresh-study-tasks">刷新</button>
+          </div>
+        </section>
+        <section class="cbi-section section-table">
+          <h3>学习任务列表</h3>
+          <div class="table-wrap">
+            <table class="cbi-section-table" id="study-tasks-table">
+              <thead>
+                <tr><th>名称</th><th>媒体数</th><th>总时长</th><th>已观看</th><th>进度</th><th>操作</th></tr>
+              </thead>
+              <tbody id="study-tasks-tbody">
+                <tr><td colspan="6">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="page-devices" class="page" hidden>
+        <section class="cbi-section section-toolbar">
+          <div class="cbi-section-node actions">
+            <button type="button" class="cbi-button cbi-button-action" id="btn-discover">扫描设备</button>
+            <button type="button" class="cbi-button" id="btn-refresh-devices">刷新</button>
+            <button type="button" class="cbi-button cbi-button-add" id="btn-add-device">手动添加</button>
+          </div>
+        </section>
+        <section class="cbi-section section-table">
+          <h3>设备列表</h3>
+          <div class="table-wrap">
+            <table class="cbi-section-table" id="devices-table">
+              <thead>
+                <tr><th>名称</th><th>IP 地址</th><th>类型</th><th>状态</th><th>操作</th></tr>
+              </thead>
+              <tbody id="devices-tbody">
+                <tr><td colspan="5">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="page-smb" class="page" hidden>
+        <section class="cbi-section section-toolbar">
+          <div class="cbi-section-node actions">
+            <button type="button" class="cbi-button cbi-button-action" id="btn-scan-smb">扫描 SMB</button>
+            <button type="button" class="cbi-button cbi-button-add" id="btn-add-smb">添加服务器</button>
+            <button type="button" class="cbi-button" id="btn-refresh-smb">刷新</button>
+          </div>
+        </section>
+
+        <section id="smb-scan-result" class="cbi-section section-table" style="display:none;">
+          <h3>扫描结果</h3>
+          <div id="smb-scan-message" class="section-message"></div>
+          <div class="table-wrap">
+            <table class="cbi-section-table" id="smb-scan-table">
+              <thead>
+                <tr><th>名称</th><th>主机</th><th>端口</th><th>操作</th></tr>
+              </thead>
+              <tbody id="smb-scan-tbody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="cbi-section section-table">
+          <h3>SMB 服务器列表</h3>
+          <div class="table-wrap">
+            <table class="cbi-section-table" id="smb-table">
+              <thead>
+                <tr><th>名称</th><th>主机</th><th>用户名</th><th>状态</th><th>操作</th></tr>
+              </thead>
+              <tbody id="smb-tbody">
+                <tr><td colspan="5">加载中...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="page-history" class="page" hidden>
+        <section class="cbi-section section-toolbar">
+          <div class="cbi-section-node actions">
+            <button type="button" class="cbi-button" id="btn-refresh-history">刷新</button>
+            <button type="button" class="cbi-button cbi-button-remove" id="btn-clear-history">清空历史</button>
+          </div>
+        </section>
+        <section class="cbi-section">
+          <h3>历史记录</h3>
+          <div id="history-list" class="tp-history-list">
+            <div class="tp-history-loading">加载中...</div>
+          </div>
+          <div id="history-pagination" class="pagination"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div id="modal-plan" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 class="modal-header" id="modal-plan-title">新建计划</h3>
+      <div id="plan-form-alert" class="tp-form-alert" style="display:none;"></div>
+      <input type="hidden" id="plan-id">
+      <div class="cbi-value"><label class="cbi-value-title">标题</label><div class="cbi-value-field"><input type="text" id="plan-title" placeholder="例如：早读英语"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">开始时间</label><div class="cbi-value-field"><input type="time" id="plan-start-time" value="09:00"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">结束时间</label><div class="cbi-value-field"><input type="time" id="plan-end-time" value="17:00"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">重复日期</label><div class="cbi-value-field day-wrap">
+        <label><input type="checkbox" class="day-check" value="1"> 周一</label>
+        <label><input type="checkbox" class="day-check" value="2"> 周二</label>
+        <label><input type="checkbox" class="day-check" value="3"> 周三</label>
+        <label><input type="checkbox" class="day-check" value="4"> 周四</label>
+        <label><input type="checkbox" class="day-check" value="5"> 周五</label>
+        <label><input type="checkbox" class="day-check" value="6"> 周六</label>
+        <label><input type="checkbox" class="day-check" value="7"> 周日</label>
+      </div></div>
+      <div class="cbi-value"><label class="cbi-value-title">设备</label><div class="cbi-value-field"><select id="plan-device"><option value="">选择设备</option></select></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">关联学习任务</label><div class="cbi-value-field">
+        <div id="plan-study-tasks-list" class="tp-plan-task-box"><span class="tp-muted">加载中...</span></div>
+      </div></div>
+      <div class="cbi-value"><label class="cbi-value-title">播放模式</label><div class="cbi-value-field">
+        <select id="plan-play-mode">
+          <option value="SEQUENTIAL">顺序播放</option>
+          <option value="RANDOM">随机播放</option>
+          <option value="SINGLE">单集播放</option>
+        </select>
+      </div></div>
+      <div class="cbi-value"><label class="cbi-value-title">启用</label><div class="cbi-value-field"><label><input type="checkbox" id="plan-is-active" checked> 立即启用</label></div></div>
+      <div class="modal-footer">
+        <button type="button" class="cbi-button" data-dismiss="modal-plan">取消</button>
+        <button type="button" class="cbi-button cbi-button-save" id="btn-save-plan">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-play-duration" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-compact">
+      <h3 class="modal-header">选择播放时长</h3>
+      <div class="cbi-section-node" style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:center;">
+        <button type="button" class="cbi-button cbi-button-action" data-duration="900">15 分钟</button>
+        <button type="button" class="cbi-button" data-duration="1800">30 分钟</button>
+        <button type="button" class="cbi-button" data-duration="3600">60 分钟</button>
+      </div>
+      <div class="modal-footer" style="margin-top:15px;">
+        <button type="button" class="cbi-button" data-dismiss="modal-play-duration">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-plan-browser" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-wide">
+      <h3 class="modal-header">选择媒体文件 <button type="button" class="cbi-button" id="btn-close-plan-browser">×</button></h3>
+      <div class="cbi-value" style="margin-bottom:10px;">
+        <label class="cbi-value-title">选择来源</label>
+        <div class="cbi-value-field" style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" class="cbi-button" id="plan-source-local">本机存储</button>
+          <button type="button" class="cbi-button cbi-button-positive" id="plan-source-smb">SMB 网络共享</button>
+        </div>
+      </div>
+      <div id="plan-smb-server-row" class="cbi-value">
+        <label class="cbi-value-title">SMB 服务器</label>
+        <div class="cbi-value-field"><select id="plan-smb-server"><option value="">选择服务器</option></select></div>
+      </div>
+      <div id="plan-breadcrumb" class="tp-browser-breadcrumb"><span>当前位置：</span><span id="plan-breadcrumb-path">-</span></div>
+      <div class="tp-file-browser-body">
+        <div class="tp-file-list">
+          <table class="cbi-section-table" style="margin:0;">
+            <thead>
+              <tr class="cbi-section-table-titles">
+                <th style="width:30px;"><input type="checkbox" id="plan-file-select-all" title="全选"></th>
+                <th style="width:30px;"></th>
+                <th>名称</th>
+                <th style="width:90px;">类型</th>
+                <th style="width:100px;">大小</th>
+              </tr>
+            </thead>
+            <tbody id="plan-file-list-body">
+              <tr><td colspan="5" style="text-align:center; color:#667085;">请选择来源或服务器</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tp-file-preview">
+          <div class="tp-file-preview-title">预览</div>
+          <img id="plan-preview-image" class="tp-preview-img" alt="预览图">
+          <div id="plan-preview-name" class="tp-preview-name">选择文件以预览</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="margin-top:15px;">
+        <span id="plan-selected-count" style="margin-right:auto;">已选择: 0 个文件/文件夹</span>
+        <button type="button" class="cbi-button" id="btn-add-current-folder" title="将当前所在文件夹内的所有视频加入列表">添加当前文件夹</button>
+        <button type="button" class="cbi-button" id="btn-cancel-plan-browser">取消</button>
+        <button type="button" class="cbi-button cbi-button-save" id="btn-add-plan-files">添加选中</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-plan-expand-confirm" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-compact" style="max-width:560px;">
+      <h3 class="modal-header" id="plan-expand-confirm-title">将导入以下视频，请确认顺序</h3>
+      <div style="max-height:320px; overflow-y:auto; border:1px solid var(--tp-border); border-radius:10px; margin:10px 0;">
+        <table class="cbi-section-table" style="margin:0;">
+          <thead>
+            <tr class="cbi-section-table-titles"><th style="width:50px;">序号</th><th>名称</th></tr>
+          </thead>
+          <tbody id="plan-expand-confirm-list"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="cbi-button" id="btn-plan-expand-cancel">取消</button>
+        <button type="button" class="cbi-button cbi-button-save" id="btn-plan-expand-confirm">确认导入</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-study-task" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 class="modal-header" id="modal-study-task-title">新建学习任务</h3>
+      <div id="study-form-alert" class="tp-form-alert" style="display:none;"></div>
+      <input type="hidden" id="study-task-id">
+      <div class="cbi-value"><label class="cbi-value-title">名称</label><div class="cbi-value-field"><input type="text" id="study-task-name" placeholder="学习任务名称"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">媒体文件</label><div class="cbi-value-field">
+        <button type="button" class="cbi-button cbi-button-add" id="btn-study-browse">浏览文件</button>
+        <div id="study-selected-files" class="tp-selected-files" style="margin-top:10px;"></div>
+      </div></div>
+      <div class="modal-footer">
+        <button type="button" class="cbi-button" data-dismiss="modal-study-task">取消</button>
+        <button type="button" class="cbi-button cbi-button-save" id="btn-save-study-task">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-device" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 class="modal-header">手动添加设备</h3>
+      <div id="device-form-alert" class="tp-form-alert" style="display:none;"></div>
+      <div class="cbi-value"><label class="cbi-value-title">IP 地址</label><div class="cbi-value-field"><input type="text" id="device-address" placeholder="192.168.1.100"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">端口</label><div class="cbi-value-field"><input type="number" id="device-port" value="8200"></div></div>
+      <div class="modal-footer">
+        <button type="button" class="cbi-button" data-dismiss="modal-device">取消</button>
+        <button type="button" class="cbi-button cbi-button-save" id="btn-save-device">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-smb" class="modal" style="display:none;" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h3 class="modal-header" id="modal-smb-title">添加 SMB 服务器</h3>
+      <div id="smb-form-alert" class="tp-form-alert" style="display:none;"></div>
+      <input type="hidden" id="smb-server-id">
+      <div class="cbi-value"><label class="cbi-value-title">名称</label><div class="cbi-value-field"><input type="text" id="smb-name" placeholder="我的 NAS"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">主机/IP</label><div class="cbi-value-field"><input type="text" id="smb-host" placeholder="192.168.1.200"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">端口</label><div class="cbi-value-field"><input type="number" id="smb-port" value="445"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">用户名</label><div class="cbi-value-field"><input type="text" id="smb-username"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">密码</label><div class="cbi-value-field"><input type="password" id="smb-password"></div></div>
+      <div class="cbi-value"><label class="cbi-value-title">共享路径</label><div class="cbi-value-field"><input type="text" id="smb-share-path" placeholder="/share"></div></div>
+      <div id="smb-test-message" class="section-message" style="display:none; margin:10px 0;"></div>
+      <div class="modal-footer">
+        <button type="button" class="cbi-button" id="btn-test-smb">测试连接</button>
+        <button type="button" class="cbi-button" data-dismiss="modal-smb">取消</button>
+        <button type="button" class="cbi-button cbi-button-save" id="btn-save-smb">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tp-toast-container" class="tp-toast-container"></div>
+
+  <div id="tp-confirm" class="tp-confirm-overlay" style="display:none;">
+    <div class="tp-confirm-dialog">
+      <div class="tp-confirm-icon tp-confirm-icon-danger" id="tp-confirm-icon">⚠</div>
+      <h4 id="tp-confirm-title">确认操作</h4>
+      <p id="tp-confirm-message">确定要执行此操作吗？</p>
+      <div class="tp-confirm-actions">
+        <button type="button" class="cbi-button" id="tp-confirm-cancel">取消</button>
+        <button type="button" class="cbi-button cbi-button-remove" id="tp-confirm-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app/boot.js?v=20260301m"></script>
+</body>
+</html>

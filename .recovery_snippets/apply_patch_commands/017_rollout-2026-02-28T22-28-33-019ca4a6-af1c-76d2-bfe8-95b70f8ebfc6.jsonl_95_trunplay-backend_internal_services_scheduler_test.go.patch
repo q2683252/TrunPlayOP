@@ -1,0 +1,131 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler_test.go
+@@
+ import (
+ 	"context"
+ 	"errors"
++	"path/filepath"
+ 	"testing"
+ 	"time"
++
++	dbstore "github.com/trunplay/trunplay-backend/internal/db"
+ )
+@@
+ func TestShouldTrigger_InvalidStartTime(t *testing.T) {
+-	// Invalid start_time defaults to 00:00
++	// Invalid start_time should be skipped to avoid accidental trigger storms.
+ 	now := time.Date(2026, 2, 1, 10, 0, 0, 0, time.UTC)
+ 	todayStr := now.Format("2006-01-02")
+ 
+ 	plan := makePlan("bad", "", false, "")
+-	if !shouldTrigger(plan, now, todayStr) {
+-		t.Fatal("expected trigger: invalid start_time defaults to 00:00, now is 10:00")
++	if shouldTrigger(plan, now, todayStr) {
++		t.Fatal("expected no trigger for invalid start_time")
+ 	}
+ }
++
++func TestShouldTrigger_InvalidRepeatDays(t *testing.T) {
++	now := time.Date(2026, 2, 2, 10, 0, 0, 0, time.UTC)
++	todayStr := now.Format("2006-01-02")
++
++	plan := makePlan("09:00", "bad", false, "")
++	if shouldTrigger(plan, now, todayStr) {
++		t.Fatal("expected no trigger for invalid repeat_days")
++	}
++}
+@@
+ func TestShouldTriggerWithHolidayProvider_ErrorFallbackWeekend(t *testing.T) {
+ 	now := time.Date(2026, 2, 7, 10, 30, 0, 0, time.Local) // Saturday
+ 	todayStr := now.Format("2006-01-02")
+ 	plan := makePlan("10:00", "", true, "")
+ 	if shouldTriggerWithHoliday(context.Background(), plan, now, todayStr, mockHolidayProvider{err: errors.New("network")}) {
+ 		t.Fatal("expected weekend fallback when provider fails")
+ 	}
+ }
++
++func TestTriggerPlan_DoesNotMarkDateOnTransientStartFailure(t *testing.T) {
++	database := openSchedulerTestDB(t)
++	playback := NewPlaybackService(nil, nil, nil, database, 8088)
++	s := NewScheduler(database, playback)
++	today := "2026-02-28"
++
++	tx, err := database.Begin()
++	if err != nil {
++		t.Fatalf("begin tx: %v", err)
++	}
++	created, err := dbstore.CreatePlan(tx, "Transient", "09:00", "", "1,2,3,4,5", "dev-1", "noop://media", "SEQUENTIAL", false, true)
++	if err != nil {
++		t.Fatalf("create plan: %v", err)
++	}
++	if err := tx.Commit(); err != nil {
++		t.Fatalf("commit create: %v", err)
++	}
++
++	s.triggerPlan(created, today)
++
++	tx2, err := database.Begin()
++	if err != nil {
++		t.Fatalf("begin tx2: %v", err)
++	}
++	updated, err := dbstore.GetPlan(tx2, created["id"].(string))
++	if err != nil {
++		t.Fatalf("get plan: %v", err)
++	}
++	_ = tx2.Rollback()
++	if got, _ := updated["last_triggered_date"].(string); got != "" {
++		t.Fatalf("expected empty last_triggered_date, got %q", got)
++	}
++}
++
++func TestTriggerPlan_MarksDateOnFatalConfigError(t *testing.T) {
++	database := openSchedulerTestDB(t)
++	playback := NewPlaybackService(nil, nil, nil, database, 8088)
++	s := NewScheduler(database, playback)
++	today := "2026-02-28"
++
++	tx, err := database.Begin()
++	if err != nil {
++		t.Fatalf("begin tx: %v", err)
++	}
++	created, err := dbstore.CreatePlan(tx, "MissingDevice", "09:00", "", "1,2,3,4,5", "", "noop://media", "SEQUENTIAL", false, true)
++	if err != nil {
++		t.Fatalf("create plan: %v", err)
++	}
++	if err := tx.Commit(); err != nil {
++		t.Fatalf("commit create: %v", err)
++	}
++
++	s.triggerPlan(created, today)
++
++	tx2, err := database.Begin()
++	if err != nil {
++		t.Fatalf("begin tx2: %v", err)
++	}
++	updated, err := dbstore.GetPlan(tx2, created["id"].(string))
++	if err != nil {
++		t.Fatalf("get plan: %v", err)
++	}
++	_ = tx2.Rollback()
++	if got, _ := updated["last_triggered_date"].(string); got != today {
++		t.Fatalf("expected last_triggered_date=%q, got %q", today, got)
++	}
++}
++
++func openSchedulerTestDB(t *testing.T) *dbstore.DB {
++	t.Helper()
++	path := filepath.Join(t.TempDir(), "scheduler-test.db")
++	database, err := dbstore.OpenAt(path)
++	if err != nil {
++		t.Fatalf("open db: %v", err)
++	}
++	if err := dbstore.Init(database); err != nil {
++		_ = database.Close()
++		t.Fatalf("init db: %v", err)
++	}
++	t.Cleanup(func() {
++		_ = database.Close()
++	})
++	return database
++}
+*** End Patch

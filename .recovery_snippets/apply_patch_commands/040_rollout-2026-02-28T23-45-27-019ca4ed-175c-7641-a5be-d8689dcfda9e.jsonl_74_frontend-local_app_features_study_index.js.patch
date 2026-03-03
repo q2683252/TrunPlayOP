@@ -1,0 +1,18 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/study/index.js
+@@
+-      const saved = await app.api[method](path, payload);
++      let saved = await app.api[method](path, payload);
+@@
+-      if (!taskId && createFromPlanContext?.draft) {
++      if (!taskId && createFromPlanContext?.draft) {
++        if (!saved?.id) {
++          const latest = await app.api.get('/study/tasks', { requestKey: 'study:list-latest' }).catch(() => []);
++          if (Array.isArray(latest) && latest.length) {
++            saved = latest.find((task) => task.name === name) || latest[0];
++          }
++        }
+         app.bus.emit('study:created-for-plan', {
+           task: saved,
+           draft: createFromPlanContext.draft,
+*** End Patch

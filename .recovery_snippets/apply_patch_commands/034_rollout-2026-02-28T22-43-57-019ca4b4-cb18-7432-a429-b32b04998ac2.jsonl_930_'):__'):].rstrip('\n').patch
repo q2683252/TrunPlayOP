@@ -1,0 +1,57 @@
+*** Begin Patch'); e=cmd.rfind('*** End Patch')
+        if s<0 or e<0:
+            continue
+        patch=cmd[s:e+len('*** End Patch')]
+        files=re.findall(r'\*\*\* (?:Add|Update|Delete) File: (.+)',patch)
+        if not files:
+            continue
+        # only frontend modular patches (skip monolith app.js and custom_css which handled separately)
+        if any(f.startswith('frontend-local/app/') or f.startswith('frontend-local/styles/') for f in files):
+            if any(f=='frontend-local/app.js' for f in files):
+                continue
+            patches.append((os.path.basename(p),idx,patch,files))
+
+# simple patch parser/apply
+class ApplyError(Exception):
+    pass
+
+def parse_patch(text):
+    lines=text.splitlines(keepends=True)
+    i=0
+    if not lines or not lines[0].startswith('*** Begin Patch'):
+        raise ApplyError('missing begin')
+    i=1
+    ops=[]
+    while i < len(lines):
+        l=lines[i]
+        if l.startswith('*** End Patch'):
+            break
+        if l.startswith('*** Update File: '):
+            path=l[len('*** Update File: '):].rstrip('\n')
+            i+=1
+            hunks=[]
+            while i < len(lines):
+                if lines[i].startswith(('*** End Patch','*** Update File: ','*** Add File: ','*** Delete File: ')):
+                    break
+                if lines[i].startswith('@@'):
+                    i+=1
+                    h=[]
+                    while i < len(lines):
+                        x=lines[i]
+                        if x.startswith(('@@','*** End Patch','*** Update File: ','*** Add File: ','*** Delete File: ')):
+                            break
+                        if x.startswith((' ','+','-')):
+                            h.append(x)
+                        i+=1
+                    hunks.append(h)
+                    continue
+                i+=1
+            ops.append(('update',path,hunks))
+            continue
+        if l.startswith('*** Add File: '):
+            path=l[len('*** Add File: '):].rstrip('\n')
+            i+=1
+            content=[]
+            while i < len(lines):
+                x=lines[i]
+                if x.startswith(('*** End Patch

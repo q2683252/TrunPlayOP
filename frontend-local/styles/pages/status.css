@@ -1,0 +1,107 @@
+.tp-onboarding {
+  border: 1px solid var(--tp-border-strong);
+  border-radius: var(--tp-radius-md);
+  background: linear-gradient(130deg, rgba(15, 118, 110, 0.08), rgba(249, 115, 22, 0.08));
+  box-shadow: var(--tp-shadow-sm);
+  padding: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.tp-onboarding.all-done {
+  background: linear-gradient(130deg, rgba(22, 163, 74, 0.09), rgba(15, 118, 110, 0.08));
+}
+
+.tp-onboarding-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.tp-onboarding-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--tp-primary);
+  font-weight: 700;
+}
+
+.tp-onboarding-head h2 {
+  margin: 0.1rem 0 0;
+  font-size: 1.1rem;
+}
+
+.tp-onboarding-summary {
+  margin: 0.6rem 0 0.7rem;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.tp-onboarding-summary strong {
+  color: var(--tp-primary);
+}
+
+.tp-onboarding-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.44rem;
+}
+
+.tp-onboarding-step {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  gap: 0.58rem;
+  align-items: center;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 12px;
+  padding: 0.5rem 0.55rem;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.tp-onboarding-step.done {
+  border-color: rgba(22, 163, 74, 0.3);
+  background: rgba(240, 253, 244, 0.85);
+}
+
+.tp-onboarding-step-index {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #d1fae5;
+  color: #047857;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+}
+
+.tp-onboarding-step.done .tp-onboarding-step-index {
+  background: #16a34a;
+  color: #fff;
+}
+
+.tp-onboarding-step-title {
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+.tp-onboarding-step-desc {
+  margin-top: 0.1rem;
+  color: var(--tp-text-muted);
+  font-size: 0.76rem;
+}
+
+.tp-step-done {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #166534;
+  border: 1px solid #86efac;
+  background: #dcfce7;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+}

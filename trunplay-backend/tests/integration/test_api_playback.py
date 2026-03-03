@@ -13,8 +13,8 @@ class TestPlaybackAPI:
         response = client.get("/api/v1/playback/status")
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 0
-        assert data["data"]["status"] == "STOPPED"
+        assert "status" in data
+        assert data["status"] == "STOPPED"
 
     def test_play_nonexistent_plan(self, client):
         """POST /playback/play with non-existent plan should return 404."""
@@ -33,7 +33,7 @@ class TestPlaybackAPI:
             "repeat_days": "1,2,3",
             "media_url": "smb://nas/video.mp4"
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Try to play
         response = client.post("/api/v1/playback/play", json={

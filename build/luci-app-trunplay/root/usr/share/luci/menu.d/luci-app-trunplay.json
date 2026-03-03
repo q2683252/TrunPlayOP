@@ -1,0 +1,12 @@
+{
+    "admin/services/trunplay": {
+        "title": "TrunPlay 定时投屏",
+        "order": 80,
+        "action": {
+            "type": "firstchild"
+        },
+        "depends": {
+            "acl": ["luci-app-trunplay"]
+        }
+    }
+}

@@ -1,0 +1,111 @@
+*** Begin Patch
+*** Update File: luci-app-trunplay/luasrc/view/trunplay/custom_css.htm
+@@
+     .advanced-filters.show {
+         display: block;
+     }
++
++    .tp-inline-filters {
++        display: flex;
++        flex-wrap: wrap;
++        gap: 0.5rem;
++        align-items: center;
++        margin: 0 0 0.85rem;
++    }
++
++    .tp-inline-filters input,
++    .tp-inline-filters select {
++        min-width: 160px;
++        max-width: 240px;
++    }
++
++    .tp-inline-filters .cbi-button {
++        margin: 0 !important;
++        height: 2rem !important;
++        line-height: 2rem !important;
++        padding: 0 0.75rem !important;
++    }
++
++    .tp-filter-meta {
++        margin-left: auto;
++        color: var(--tp-text-light);
++        font-size: 0.8rem;
++    }
++
++    .tp-day-presets {
++        display: flex;
++        flex-wrap: wrap;
++        gap: 0.4rem;
++        width: 100%;
++        margin: 0.2rem 0 0.4rem;
++    }
++
++    .tp-day-presets .cbi-button {
++        margin: 0 !important;
++        height: 1.9rem !important;
++        line-height: 1.9rem !important;
++        padding: 0 0.65rem !important;
++        font-size: 0.78rem !important;
++    }
++
++    .tp-browser-toolbar {
++        display: flex;
++        flex-wrap: wrap;
++        gap: 0.5rem;
++        margin-bottom: 0.75rem;
++        align-items: center;
++    }
++
++    .tp-browser-toolbar input,
++    .tp-browser-toolbar select {
++        min-width: 120px;
++        max-width: 220px;
++    }
++
++    .tp-browser-toolbar .cbi-button {
++        margin: 0 !important;
++        height: 2rem !important;
++        line-height: 2rem !important;
++        padding: 0 0.75rem !important;
++    }
++
++    .tp-browser-summary {
++        margin-left: auto;
++        color: var(--tp-text-light);
++        font-size: 0.8rem;
++    }
++
++    .tp-selected-files-toolbar {
++        display: flex;
++        gap: 0.5rem;
++        flex-wrap: wrap;
++        align-items: center;
++        margin-top: 0.5rem;
++    }
++
++    .tp-selected-files-toolbar .cbi-button {
++        margin: 0 !important;
++        height: 2rem !important;
++        line-height: 2rem !important;
++        padding: 0 0.7rem !important;
++        font-size: 0.8rem !important;
++    }
++
++    .tp-duration-custom {
++        display: flex;
++        align-items: center;
++        justify-content: center;
++        gap: 0.5rem;
++        margin-top: 0.5rem;
++    }
++
++    .tp-duration-custom input {
++        max-width: 110px;
++        height: 2rem;
++    }
+ 
+     .progress-meta {
+         font-size: 0.75rem;
+         color: var(--tp-text-light);
+         margin-top: 4px;
+*** End Patch

@@ -1,0 +1,60 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/thumbnail.go
+@@
+-			cachePath := thumbCachePath(c, uri, resolvedLastModified)
++			cachePath := thumbCachePath(c, uri, resolvedLastModified, target.kind, "")
+@@
+-			cachePath := thumbCachePath(c, uri, resolvedLastModified)
++			cachePath := thumbCachePath(c, uri, resolvedLastModified, target.kind, serverID)
+@@
+ func isAllowedLocalPath(c *gin.Context, path string) bool {
+ 	cfg := getConfig(c)
+ 	roots := cfg.LocalMediaPaths
+ 	if len(roots) == 0 {
+ 		roots = []string{"/mnt", "/tmp", "/root"}
+ 	}
+-	pathAbs, err := filepath.Abs(path)
+-	if err != nil {
+-		return false
+-	}
+-	pathAbs, err = filepath.EvalSymlinks(pathAbs)
+-	if err != nil {
+-		pathAbs = filepath.Clean(path)
+-	}
+-	for _, root := range roots {
+-		rootAbs, _ := filepath.Abs(root)
+-		rootAbs, _ = filepath.EvalSymlinks(rootAbs)
+-		if pathAbs == rootAbs || strings.HasPrefix(pathAbs, rootAbs+string(filepath.Separator)) {
+-			return true
+-		}
+-	}
+-	return false
++	return isPathWithinRoots(path, roots)
+ }
+@@
+-func thumbCachePath(c *gin.Context, uri string, lastModified int64) string {
++func thumbCachePath(c *gin.Context, uri string, lastModified int64, sourceType, serverID string) string {
+ 	cfg := getConfig(c)
+ 	dir := strings.TrimSpace(cfg.ThumbnailCacheDir)
+ 	if dir == "" {
+ 		return ""
+ 	}
+ 	_ = os.MkdirAll(dir, 0755)
+-	key := thumbCacheKey(uri, lastModified)
++	key := thumbCacheKey(uri, lastModified, sourceType, serverID)
+ 	return filepath.Join(dir, key+".jpg")
+ }
+ 
+-func thumbCacheKey(uri string, lastModified int64) string {
++func thumbCacheKey(uri string, lastModified int64, sourceType, serverID string) string {
+ 	h := sha1.New()
+ 	_, _ = h.Write([]byte(uri))
+ 	_, _ = h.Write([]byte("|"))
+ 	_, _ = h.Write([]byte(strconv.FormatInt(lastModified, 10)))
++	if strings.EqualFold(sourceType, "SMB") {
++		_, _ = h.Write([]byte("|"))
++		_, _ = h.Write([]byte(strings.TrimSpace(serverID)))
++	}
+ 	return hex.EncodeToString(h.Sum(nil))
+ }
+*** End Patch

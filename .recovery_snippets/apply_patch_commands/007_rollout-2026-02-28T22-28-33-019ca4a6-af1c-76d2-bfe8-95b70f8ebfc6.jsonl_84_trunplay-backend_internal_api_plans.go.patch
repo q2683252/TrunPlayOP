@@ -1,0 +1,15 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/plans.go
+@@
+ 	success, err := getPlayback(c).StartPlayback(c.Request.Context(), tx2, freshPlan, "MANUAL", body.StartPosition, body.Duration)
+ 	if err != nil {
+-		logAPI.Error("play plan StartPlayback", "err", err)
+-		ServerError(c, err.Error())
++		logAPI.Warn("play plan StartPlayback", "err", err)
++		if handleStartPlaybackError(c, err) {
++			return
++		}
++		ServerError(c, err.Error())
+ 		return
+ 	}
+*** End Patch

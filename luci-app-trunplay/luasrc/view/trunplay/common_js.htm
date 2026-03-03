@@ -1,0 +1,33 @@
+<script type="text/javascript">
+(function (w) {
+    if (w.trunplayCommon) return;
+
+    var api = {
+        escapeHtml: function (text) {
+            return String(text == null ? '' : text)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        },
+
+        formatTemplate: function (tpl) {
+            var args = Array.prototype.slice.call(arguments, 1);
+            var i = 0;
+            return String(tpl || '').replace(/%s/g, function () {
+                return args[i++] || '';
+            });
+        },
+
+        toDurationSeconds: function (value) {
+            var num = parseInt(value || 0, 10);
+            if (!isFinite(num) || num <= 0) return 0;
+            // Keep backward compatibility with legacy millisecond values.
+            return num > 1000000 ? Math.floor(num / 1000) : num;
+        }
+    };
+
+    w.trunplayCommon = api;
+})(window);
+</script>

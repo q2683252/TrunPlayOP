@@ -1,0 +1,14 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/path_allowlist.go
+@@
+ 	resolved, err := filepath.EvalSymlinks(abs)
+ 	if err == nil && resolved != "" {
+ 		return filepath.Clean(resolved)
+ 	}
++	parentResolved, parentErr := filepath.EvalSymlinks(filepath.Dir(abs))
++	if parentErr == nil && parentResolved != "" {
++		return filepath.Clean(filepath.Join(parentResolved, filepath.Base(abs)))
++	}
+ 	return filepath.Clean(abs)
+ }
+*** End Patch

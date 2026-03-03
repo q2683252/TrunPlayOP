@@ -1,0 +1,11 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/response.go
+@@
+ func BadRequest(c *gin.Context, message string) {
+ 	c.JSON(http.StatusBadRequest, ApiResponse{Code: 400, Message: message})
+ }
++
++func Forbidden(c *gin.Context, message string) {
++	c.JSON(http.StatusForbidden, ApiResponse{Code: 403, Message: message})
++}
+*** End Patch

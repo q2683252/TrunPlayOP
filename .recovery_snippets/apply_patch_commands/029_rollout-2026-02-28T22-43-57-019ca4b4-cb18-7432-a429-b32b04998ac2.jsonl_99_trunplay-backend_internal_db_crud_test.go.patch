@@ -1,0 +1,52 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/db/crud_test.go
+@@
+ func TestCreatePlaybackHistory_GetPlaybackHistories(t *testing.T) {
+@@
+ }
++
++func TestGetPlaybackHistories_UniqueOrderByProgress(t *testing.T) {
++	db, cleanup := testDB(t)
++	defer cleanup()
++	tx, err := db.Begin()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer tx.Rollback()
++
++	h1, err := CreatePlaybackHistory(tx, "plan-1", "Plan A", "dev-1", "TV", "192.168.1.1", "http://x/a.mp4", "video-a", 3600, "MANUAL", "Unknown", "", "", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	h2, err := CreatePlaybackHistory(tx, "plan-2", "Plan B", "dev-1", "TV", "192.168.1.1", "http://x/b.mp4", "video-b", 3600, "MANUAL", "Unknown", "", "", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	h1ID, _ := h1["id"].(string)
++	h2ID, _ := h2["id"].(string)
++	if _, err := UpdatePlaybackHistoryProgress(tx, h1ID, 120, 100); err != nil {
++		t.Fatal(err)
++	}
++	if _, err := UpdatePlaybackHistoryProgress(tx, h2ID, 300, 250); err != nil {
++		t.Fatal(err)
++	}
++
++	total, items, err := GetPlaybackHistories(tx, 0, 10, PlaybackHistoryQuery{
++		Unique:  true,
++		OrderBy: "progress",
++		Order:   "DESC",
++	})
++	if err != nil {
++		t.Fatalf("unique history query failed: %v", err)
++	}
++	if total != 2 || len(items) != 2 {
++		t.Fatalf("unexpected unique result size: total=%d items=%d", total, len(items))
++	}
++	if got, _ := items[0]["media_name"].(string); got != "video-b" {
++		t.Fatalf("expected highest progress media first, got %q", got)
++	}
++}
+ 
+ func TestCreateStudyTask_GetStudyTask(t *testing.T) {
+*** End Patch

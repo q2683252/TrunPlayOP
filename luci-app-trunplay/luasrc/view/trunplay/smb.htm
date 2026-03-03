@@ -1,38 +1,97 @@
-<%#
-TrunPlay - SMB Servers Management Page
-%>
+<%# TrunPlay - SMB Servers Management Page %>
 
 <%+header%>
+<%+trunplay/custom_css%>
+<%+trunplay/common_js%>
 
-<h2><%:SMB 存储管理%></h2>
+<h2>
+    <%:SMB 存储管理%>
+</h2>
+<div id="trunplay-message" role="alert" aria-live="polite"></div>
 
-<div class="cbi-section">
-    <div class="cbi-section-node">
-        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddServer()"><%:添加服务器%></button>
-        <button class="cbi-button" onclick="trunplay.loadServers()"><%:刷新%></button>
+<div class="cbi-section compact-section">
+    <div class="tp-plan-header">
+        <div class="tp-plan-title"><%:服务器操作%></div>
+        <div class="tp-plan-actions">
+            <button class="cbi-button cbi-button-add" onclick="trunplay.showAddServer()">
+                <%:添加服务器%>
+            </button>
+            <button id="smb-refresh-btn" class="cbi-button" onclick="trunplay.loadServers()">
+                <%:刷新%>
+            </button>
+            <button id="smb-discover-btn" class="cbi-button cbi-button-action" onclick="trunplay.discoverServers(this)">
+                <%:扫描局域网%>
+            </button>
+        </div>
+    </div>
+
+    <div class="tp-inline-filters">
+        <input type="text" id="smb-filter-keyword" placeholder="按名称、主机、用户名搜索" oninput="trunplay.applyFilters()">
+        <select id="smb-filter-status" onchange="trunplay.applyFilters()">
+            <option value=""><%:全部状态%></option>
+            <option value="connected"><%:仅已连接%></option>
+            <option value="disconnected"><%:仅未连接%></option>
+        </select>
+        <select id="smb-filter-sort" onchange="trunplay.applyFilters()">
+            <option value="connected_first"><%:已连接优先%></option>
+            <option value="last_connected_desc"><%:最近连接优先%></option>
+            <option value="name_asc"><%:名称 A-Z%></option>
+            <option value="host_asc"><%:主机地址%></option>
+        </select>
+        <button class="cbi-button" onclick="trunplay.resetFilters()"><%:重置筛选%></button>
+        <span id="smb-filter-meta" class="tp-filter-meta">-</span>
+    </div>
+
+    <div class="tp-inline-filters" style="margin-bottom:0;">
+        <span id="smb-stat-total" class="status-badge active">总计 0</span>
+        <span id="smb-stat-connected" class="status-badge online">已连接 0</span>
+        <span id="smb-stat-disconnected" class="status-badge offline">未连接 0</span>
     </div>
 </div>
 
+<div class="cbi-section" id="smb-discover-section" style="display:none;">
+    <h3>
+        <%:局域网扫描结果%>
+    </h3>
+    <table class="cbi-section-table" id="discover-table">
+        <tr class="cbi-section-table-titles">
+            <th><%:建议名称%></th>
+            <th><%:主机%></th>
+            <th><%:端口%></th>
+            <th><%:操作%></th>
+        </tr>
+        <tr>
+            <td colspan="4"><%:暂无扫描结果%></td>
+        </tr>
+    </table>
+</div>
+
 <div class="cbi-section">
-    <h3><%:SMB 服务器列表%></h3>
+    <h3>
+        <%:SMB 服务器列表%>
+    </h3>
     <table class="cbi-section-table" id="servers-table">
         <tr class="cbi-section-table-titles">
             <th><%:名称%></th>
             <th><%:主机%></th>
             <th><%:用户名%></th>
+            <th><%:共享路径%></th>
             <th><%:状态%></th>
+            <th><%:最近连接%></th>
             <th><%:操作%></th>
         </tr>
         <tr id="servers-loading">
-            <td colspan="5"><%:加载中...%></td>
+            <td colspan="7"><%:加载中...%></td>
         </tr>
     </table>
 </div>
 
 <!-- Add/Edit Server Modal -->
-<div id="server-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
-    <div style="background:#fff; max-width:400px; margin:50px auto; padding:20px; border-radius:5px;">
-        <h3 id="modal-title"><%:添加 SMB 服务器%></h3>
+<div id="server-modal" class="modal-overlay" data-close="hideModal" style="z-index:1000;">
+    <div class="modal-content">
+        <h3 id="modal-title" class="modal-header">
+            <%:添加 SMB 服务器%>
+        </h3>
         <input type="hidden" id="server-id">
 
         <div class="cbi-value">
@@ -52,7 +111,7 @@ TrunPlay - SMB Servers Management Page
         <div class="cbi-value">
             <label class="cbi-value-title"><%:端口%></label>
             <div class="cbi-value-field">
-                <input type="number" id="server-port" value="445">
+                <input type="number" id="server-port" value="445" min="1" max="65535">
             </div>
         </div>
 
@@ -67,83 +126,447 @@ TrunPlay - SMB Servers Management Page
             <label class="cbi-value-title"><%:密码%></label>
             <div class="cbi-value-field">
                 <input type="password" id="server-password">
+                <div class="cbi-value-desc">编辑时留空表示不修改密码</div>
             </div>
         </div>
 
-        <div style="margin-top:20px; text-align:right;">
-            <button class="cbi-button" onclick="trunplay.testConnection()"><%:测试连接%></button>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:共享路径%></label>
+            <div class="cbi-value-field">
+                <input type="text" id="server-share-path" placeholder="例如: share 或 Videos">
+                <div class="cbi-value-desc">用于直接打开目标目录，留空时浏览时先选择共享目录</div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button id="smb-test-btn" class="cbi-button" onclick="trunplay.testConnection()"><%:测试连接%></button>
             <button class="cbi-button" onclick="trunplay.hideModal()"><%:取消%></button>
-            <button class="cbi-button cbi-button-save" onclick="trunplay.saveServer()"><%:保存%></button>
+            <button id="smb-save-btn" class="cbi-button cbi-button-save" onclick="trunplay.saveServer()"><%:保存%></button>
+        </div>
+    </div>
+</div>
+
+<!-- Browse Files Modal -->
+<div id="browse-modal" class="modal-overlay" data-close="hideBrowse" style="z-index:1001;">
+    <div class="modal-content modal-wide">
+        <h3 class="modal-header">
+            <%:浏览 SMB 文件%>
+            <button class="cbi-button" onclick="trunplay.hideBrowse()" style="float:right;" type="button">x</button>
+        </h3>
+
+        <div id="browse-breadcrumb" style="padding:10px; background:#f5f5f5; border-radius:3px; margin:10px 0;">
+            <span style="color:#999;"><%:当前位置:%></span>
+            <span id="breadcrumb-path">-</span>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:3px;">
+            <table class="cbi-section-table" id="browse-file-list" style="margin:0;">
+                <thead>
+                    <tr class="cbi-section-table-titles">
+                        <th style="width:56px;"><%:标记%></th>
+                        <th><%:名称%></th>
+                        <th style="width:100px;"><%:类型%></th>
+                        <th style="width:120px;"><%:大小%></th>
+                    </tr>
+                </thead>
+                <tbody id="browse-file-list-body">
+                    <tr>
+                        <td colspan="4" style="text-align:center; color:#999;"><%:加载中...%></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="modal-footer" style="margin-top:15px;">
+            <button class="cbi-button" onclick="trunplay.hideBrowse()" type="button"><%:关闭%></button>
         </div>
     </div>
 </div>
 
 <script type="text/javascript">
 //<![CDATA[
+var L = {
+    loadFail: '<%:加载失败，请重试%>',
+    enterHost: '<%:请输入主机地址%>',
+    fillNameHost: '<%:请填写名称和主机%>',
+    invalidPort: '<%:端口必须在 1-65535 之间%>',
+    deleteConfirm: '<%:删除后无法恢复，确定要删除吗？%>',
+    deletedServer: '<%:已删除服务器%>',
+    noData: '<%:暂无 SMB 服务器。点击「添加服务器」填写主机与凭据。%>',
+    noMatch: '<%:当前筛选条件下没有匹配的服务器%>',
+    filterSummary: '<%:显示 %s / %s 台服务器%>',
+    discoverEmpty: '<%:未发现可用的 SMB 服务器，请确认设备已开启 SMB 服务并在同一局域网。%>',
+    browseFail: '<%:浏览失败%>',
+    folderEmpty: '<%:此文件夹为空%>'
+};
+
 var trunplay = {
     apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+    common: window.trunplayCommon || {},
     servers: [],
+    filteredServers: [],
+    discoveredServers: [],
+    filters: {
+        keyword: '',
+        status: '',
+        sort: 'connected_first'
+    },
 
-    api: function(path, method, body, callback) {
+    currentServerId: '',
+    currentPath: '',
+    smbPathPrefix: '',
+    browseFiles: [],
+
+    showMessage: function (type, text) {
+        var el = document.getElementById('trunplay-message');
+        if (!el) return;
+        var safeText = this.escapeHtml(text);
+        el.className = 'show ' + (type || 'success');
+        el.innerHTML = safeText + ' <span class="trunplay-msg-close" onclick="this.parentElement.classList.remove(\'show\')" aria-label="关闭">x</span>';
+        clearTimeout(window._trunplayMsgTimer);
+        window._trunplayMsgTimer = setTimeout(function () { el.classList.remove('show'); }, 4000);
+    },
+
+    api: function (path, method, body, callback) {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', this.apiBase, true);
         xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function() {
+        xhr.onreadystatechange = function () {
             if (xhr.readyState === 4) {
                 var data = null;
-                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                try { data = JSON.parse(xhr.responseText); } catch (e) { }
                 if (callback) callback(data, xhr.status);
             }
         };
         var params = 'path=' + encodeURIComponent(path);
+        if (method) params += '&method=' + encodeURIComponent(method);
         if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
         xhr.send(params);
     },
 
-    loadServers: function() {
+    escapeHtml: function (text) {
+        if (this.common && typeof this.common.escapeHtml === 'function') {
+            return this.common.escapeHtml(text);
+        }
+        return String(text == null ? '' : text);
+    },
+
+    formatTemplate: function (tpl) {
+        if (this.common && typeof this.common.formatTemplate === 'function') {
+            return this.common.formatTemplate.apply(this.common, arguments);
+        }
+        return String(tpl || '');
+    },
+
+    formatTimestamp: function (value) {
+        var ts = parseInt(value || 0, 10);
+        if (!isFinite(ts) || ts <= 0) return '-';
+        if (ts < 1000000000000) ts = ts * 1000;
+        var d = new Date(ts);
+        if (isNaN(d.getTime())) return '-';
+        return d.toLocaleString();
+    },
+
+    formatSize: function (bytes) {
+        var size = parseInt(bytes || 0, 10);
+        if (!isFinite(size) || size <= 0) return '0 B';
+        var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        var idx = 0;
+        while (size >= 1024 && idx < units.length - 1) {
+            size = size / 1024;
+            idx += 1;
+        }
+        return size.toFixed(idx === 0 ? 0 : 1) + ' ' + units[idx];
+    },
+
+    normalizeSharePath: function (value) {
+        return String(value || '').trim().replace(/^[\\/]+/, '').replace(/[\\/]+$/, '');
+    },
+
+    clearServerTable: function () {
+        var table = document.getElementById('servers-table');
+        if (!table) return;
+        while (table.rows.length > 1) {
+            table.deleteRow(1);
+        }
+    },
+
+    appendServerMessage: function (message, className) {
+        var table = document.getElementById('servers-table');
+        if (!table) return;
+        var row = table.insertRow(-1);
+        row.className = className || 'trunplay-empty-row';
+        row.innerHTML = '<td colspan="7">' + this.escapeHtml(message) + '</td>';
+    },
+
+    clearDiscoverTable: function () {
+        var table = document.getElementById('discover-table');
+        if (!table) return;
+        while (table.rows.length > 1) {
+            table.deleteRow(1);
+        }
+    },
+
+    renderDiscoverResults: function () {
+        var section = document.getElementById('smb-discover-section');
+        if (!section) return;
+
+        if (!this.discoveredServers.length) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+        this.clearDiscoverTable();
+
+        var table = document.getElementById('discover-table');
         var self = this;
-        this.api('/smb/servers', 'GET', null, function(data) {
-            var table = document.getElementById('servers-table');
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
+        this.discoveredServers.forEach(function (server) {
+            var row = table.insertRow(-1);
+            row.insertCell(0).textContent = server.instance_name || server.host || 'SMB Server';
+            row.insertCell(1).textContent = server.host || '-';
+            row.insertCell(2).textContent = String(server.port || 445);
+
+            var actionCell = row.insertCell(3);
+            var addBtn = document.createElement('button');
+            addBtn.className = 'cbi-button cbi-button-add';
+            addBtn.textContent = '快速添加';
+            addBtn.addEventListener('click', function () {
+                self.showAddServer(server);
+            });
+            actionCell.appendChild(addBtn);
+        });
+    },
+
+    getFilterValues: function () {
+        var keywordEl = document.getElementById('smb-filter-keyword');
+        var statusEl = document.getElementById('smb-filter-status');
+        var sortEl = document.getElementById('smb-filter-sort');
+        this.filters.keyword = keywordEl ? String(keywordEl.value || '').trim().toLowerCase() : '';
+        this.filters.status = statusEl ? String(statusEl.value || '') : '';
+        this.filters.sort = sortEl ? String(sortEl.value || 'connected_first') : 'connected_first';
+        return this.filters;
+    },
+
+    updateFilterMeta: function (visible, total) {
+        var el = document.getElementById('smb-filter-meta');
+        if (!el) return;
+        el.textContent = this.formatTemplate(L.filterSummary, String(visible), String(total));
+    },
+
+    updateStats: function () {
+        var total = this.servers.length;
+        var connected = this.servers.filter(function (s) { return !!s.is_connected; }).length;
+        var disconnected = total - connected;
+
+        var totalEl = document.getElementById('smb-stat-total');
+        var connectedEl = document.getElementById('smb-stat-connected');
+        var disconnectedEl = document.getElementById('smb-stat-disconnected');
+        if (totalEl) totalEl.textContent = '总计 ' + total;
+        if (connectedEl) connectedEl.textContent = '已连接 ' + connected;
+        if (disconnectedEl) disconnectedEl.textContent = '未连接 ' + disconnected;
+    },
+
+    applyFilters: function () {
+        var filters = this.getFilterValues();
+        var list = this.servers.slice();
+
+        if (filters.keyword) {
+            list = list.filter(function (server) {
+                var fields = [
+                    server.name,
+                    server.host,
+                    server.username,
+                    server.share_path,
+                    server.hostname
+                ];
+                return fields.some(function (field) {
+                    return String(field || '').toLowerCase().indexOf(filters.keyword) >= 0;
+                });
+            });
+        }
+
+        if (filters.status === 'connected') {
+            list = list.filter(function (server) { return !!server.is_connected; });
+        } else if (filters.status === 'disconnected') {
+            list = list.filter(function (server) { return !server.is_connected; });
+        }
+
+        var sort = filters.sort;
+        list.sort(function (a, b) {
+            var nameA = String(a.name || '').toLowerCase();
+            var nameB = String(b.name || '').toLowerCase();
+
+            if (sort === 'name_asc') return nameA.localeCompare(nameB);
+            if (sort === 'host_asc') {
+                var hostA = String(a.host || '').toLowerCase();
+                var hostB = String(b.host || '').toLowerCase();
+                if (hostA !== hostB) return hostA.localeCompare(hostB);
+                return nameA.localeCompare(nameB);
+            }
+            if (sort === 'last_connected_desc') {
+                var timeA = parseInt(a.last_connected_at || 0, 10) || 0;
+                var timeB = parseInt(b.last_connected_at || 0, 10) || 0;
+                if (timeA !== timeB) return timeB - timeA;
+                return nameA.localeCompare(nameB);
             }
 
-            if (!data || data.length === 0) {
-                var row = table.insertRow(-1);
-                row.innerHTML = '<td colspan="5">暂无 SMB 服务器</td>';
+            var connectedA = !!a.is_connected;
+            var connectedB = !!b.is_connected;
+            if (connectedA !== connectedB) return connectedA ? -1 : 1;
+            return nameA.localeCompare(nameB);
+        });
+
+        this.filteredServers = list;
+        this.updateFilterMeta(list.length, this.servers.length);
+        this.renderServers(list);
+    },
+
+    renderServers: function (servers) {
+        var self = this;
+        this.clearServerTable();
+
+        if (!this.servers.length) {
+            this.appendServerMessage(L.noData, 'trunplay-empty-row');
+            return;
+        }
+
+        if (!servers.length) {
+            this.appendServerMessage(L.noMatch, 'trunplay-empty-row');
+            return;
+        }
+
+        var table = document.getElementById('servers-table');
+        servers.forEach(function (server) {
+            var row = table.insertRow(-1);
+
+            row.insertCell(0).textContent = server.name || '-';
+            row.insertCell(1).textContent = (server.host || '-') + ':' + (server.port || 445);
+            row.insertCell(2).textContent = server.username || '匿名';
+            row.insertCell(3).textContent = server.share_path || '-';
+
+            var statusCell = row.insertCell(4);
+            var statusBadge = document.createElement('span');
+            statusBadge.className = 'status-badge ' + (server.is_connected ? 'online' : 'offline');
+            statusBadge.textContent = server.is_connected ? '已连接' : '未连接';
+            statusCell.appendChild(statusBadge);
+
+            row.insertCell(5).textContent = self.formatTimestamp(server.last_connected_at);
+
+            var actionCell = row.insertCell(6);
+
+            var browseBtn = document.createElement('button');
+            browseBtn.className = 'cbi-button';
+            browseBtn.textContent = '浏览';
+            browseBtn.addEventListener('click', function () {
+                self.browseServer(server.id);
+            });
+            actionCell.appendChild(browseBtn);
+
+            var editBtn = document.createElement('button');
+            editBtn.className = 'cbi-button';
+            editBtn.textContent = '编辑';
+            editBtn.addEventListener('click', function () {
+                self.editServer(server.id);
+            });
+            actionCell.appendChild(editBtn);
+
+            var deleteBtn = document.createElement('button');
+            deleteBtn.className = 'cbi-button cbi-button-remove';
+            deleteBtn.textContent = '删除';
+            deleteBtn.addEventListener('click', function () {
+                self.deleteServer(server.id);
+            });
+            actionCell.appendChild(deleteBtn);
+        });
+    },
+
+    loadServers: function () {
+        var self = this;
+        var refreshBtn = document.getElementById('smb-refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '加载中...';
+        }
+
+        this.clearServerTable();
+        this.appendServerMessage('加载中...', 'trunplay-loading-row');
+
+        this.api('/smb/servers', 'GET', null, function (data, status) {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '刷新';
+            }
+
+            if (status !== 200 || !Array.isArray(data)) {
+                self.servers = [];
+                self.clearServerTable();
+                self.appendServerMessage(L.loadFail, 'trunplay-empty-row');
+                self.updateStats();
+                self.updateFilterMeta(0, 0);
+                self.showMessage('error', (data && data.message) ? data.message : L.loadFail);
                 return;
             }
 
             self.servers = data;
-            data.forEach(function(server) {
-                var row = table.insertRow(-1);
-                row.innerHTML =
-                    '<td>' + (server.name || '-') + '</td>' +
-                    '<td>' + (server.host || '-') + ':' + (server.port || 445) + '</td>' +
-                    '<td>' + (server.username || '匿名') + '</td>' +
-                    '<td>' + (server.is_connected ? '<span style="color:green;">已连接</span>' : '<span style="color:gray;">未连接</span>') + '</td>' +
-                    '<td>' +
-                        '<button class="cbi-button" onclick="trunplay.browseServer(\'' + server.id + '\')">浏览</button> ' +
-                        '<button class="cbi-button" onclick="trunplay.editServer(\'' + server.id + '\')">编辑</button> ' +
-                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deleteServer(\'' + server.id + '\')">删除</button>' +
-                    '</td>';
-            });
+            self.updateStats();
+            self.applyFilters();
         });
     },
 
-    showAddServer: function() {
-        document.getElementById('modal-title').textContent = '添加 SMB 服务器';
-        document.getElementById('server-id').value = '';
-        document.getElementById('server-name').value = '';
-        document.getElementById('server-host').value = '';
-        document.getElementById('server-port').value = '445';
-        document.getElementById('server-username').value = '';
-        document.getElementById('server-password').value = '';
-        document.getElementById('server-modal').style.display = '';
+    discoverServers: function (button) {
+        var self = this;
+        var btn = button || document.getElementById('smb-discover-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '扫描中...';
+        }
+
+        this.api('/smb/discover?timeout=5', 'POST', {}, function (data, status) {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '扫描局域网';
+            }
+
+            if (status === 200 && data && Array.isArray(data.servers)) {
+                self.discoveredServers = data.servers;
+                self.renderDiscoverResults();
+                if (data.servers.length) {
+                    self.showMessage('success', '发现 ' + data.servers.length + ' 台 SMB 服务，可一键快速添加');
+                } else {
+                    self.showMessage('warning', L.discoverEmpty);
+                }
+                return;
+            }
+
+            self.discoveredServers = [];
+            self.renderDiscoverResults();
+            self.showMessage('error', (data && data.message) ? data.message : '扫描失败，请稍后重试');
+        });
     },
 
-    editServer: function(serverId) {
-        var server = this.servers.find(function(s) { return s.id === serverId; });
+    showAddServer: function (prefill) {
+        var source = prefill || {};
+        document.getElementById('modal-title').textContent = '添加 SMB 服务器';
+        document.getElementById('server-id').value = '';
+        document.getElementById('server-name').value = source.instance_name || source.host || '';
+        document.getElementById('server-host').value = source.host || '';
+        document.getElementById('server-port').value = source.port || 445;
+        document.getElementById('server-username').value = '';
+        document.getElementById('server-password').value = '';
+        document.getElementById('server-share-path').value = '';
+        document.getElementById('server-modal').classList.add('show');
+        document.getElementById('server-modal').onclick = function (e) {
+            if (e.target.id === 'server-modal') trunplay.hideModal();
+        };
+        setTimeout(function () {
+            var first = document.getElementById('server-name');
+            if (first) first.focus();
+        }, 100);
+    },
+
+    editServer: function (serverId) {
+        var server = this.servers.find(function (s) { return s.id === serverId; });
         if (!server) return;
 
         document.getElementById('modal-title').textContent = '编辑 SMB 服务器';
@@ -153,82 +576,347 @@ var trunplay = {
         document.getElementById('server-port').value = server.port || 445;
         document.getElementById('server-username').value = server.username || '';
         document.getElementById('server-password').value = '';
-        document.getElementById('server-modal').style.display = '';
+        document.getElementById('server-share-path').value = server.share_path || '';
+        document.getElementById('server-modal').classList.add('show');
+        document.getElementById('server-modal').onclick = function (e) {
+            if (e.target.id === 'server-modal') trunplay.hideModal();
+        };
+        setTimeout(function () {
+            var first = document.getElementById('server-name');
+            if (first) first.focus();
+        }, 100);
     },
 
-    hideModal: function() {
-        document.getElementById('server-modal').style.display = 'none';
+    hideModal: function () {
+        document.getElementById('server-modal').classList.remove('show');
+        document.getElementById('server-modal').onclick = null;
     },
 
-    testConnection: function() {
+    testConnection: function () {
+        var host = String(document.getElementById('server-host').value || '').trim();
+        var port = parseInt(document.getElementById('server-port').value, 10);
         var data = {
-            host: document.getElementById('server-host').value,
-            port: parseInt(document.getElementById('server-port').value),
-            username: document.getElementById('server-username').value,
-            password: document.getElementById('server-password').value
+            host: host,
+            port: port,
+            username: String(document.getElementById('server-username').value || '').trim(),
+            password: document.getElementById('server-password').value || ''
         };
 
         if (!data.host) {
-            alert('请输入主机地址');
+            this.showMessage('error', L.enterHost);
+            return;
+        }
+        if (!isFinite(data.port) || data.port < 1 || data.port > 65535) {
+            this.showMessage('error', L.invalidPort);
             return;
         }
 
-        this.api('/smb/servers/test', 'POST', data, function(result) {
+        var btn = document.getElementById('smb-test-btn');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+        }
+
+        this.api('/smb/servers/test', 'POST', data, function (result, status) {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = '测试连接';
+            }
+            if (status !== 200) {
+                trunplay.showMessage('error', (result && result.message) ? result.message : '测试请求失败');
+                return;
+            }
             if (result) {
-                alert(result.success ? '连接成功: ' + result.message : '连接失败: ' + result.message);
+                trunplay.showMessage(result.success ? 'success' : 'error', result.success ? ('连接成功: ' + result.message) : ('连接失败: ' + result.message));
             } else {
-                alert('测试请求失败');
+                trunplay.showMessage('error', '测试请求失败');
             }
         });
     },
 
-    saveServer: function() {
+    saveServer: function () {
         var serverId = document.getElementById('server-id').value;
+        var port = parseInt(document.getElementById('server-port').value, 10);
         var data = {
-            name: document.getElementById('server-name').value,
-            host: document.getElementById('server-host').value,
-            port: parseInt(document.getElementById('server-port').value),
-            username: document.getElementById('server-username').value,
-            password: document.getElementById('server-password').value
+            name: String(document.getElementById('server-name').value || '').trim(),
+            host: String(document.getElementById('server-host').value || '').trim(),
+            port: port,
+            username: String(document.getElementById('server-username').value || '').trim(),
+            share_path: this.normalizeSharePath(document.getElementById('server-share-path').value)
         };
+        var pwd = document.getElementById('server-password').value;
+        if (!serverId || pwd) {
+            data.password = pwd || '';
+        }
 
         if (!data.name || !data.host) {
-            alert('请填写名称和主机');
+            this.showMessage('error', L.fillNameHost);
+            return;
+        }
+        if (!isFinite(data.port) || data.port < 1 || data.port > 65535) {
+            this.showMessage('error', L.invalidPort);
             return;
         }
 
-        var path = serverId ? '/smb/servers/' + serverId : '/smb/servers';
+        var saveBtn = document.getElementById('smb-save-btn');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.textContent = '保存中...';
+        }
+
+        var path = serverId ? '/smb/servers/' + encodeURIComponent(serverId) : '/smb/servers';
         var method = serverId ? 'PUT' : 'POST';
 
-        this.api(path, method, data, function(result) {
-            if (result && result.id) {
+        this.api(path, method, data, function (result, status) {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.textContent = '保存';
+            }
+
+            if (status === 200 && result && result.id) {
                 trunplay.hideModal();
                 trunplay.loadServers();
+                trunplay.showMessage('success', '保存成功');
             } else {
-                alert('保存失败');
+                trunplay.showMessage('error', (result && result.message) ? result.message : '保存失败');
             }
         });
     },
 
-    deleteServer: function(serverId) {
-        if (!confirm('确定要删除这个服务器吗？')) return;
+    deleteServer: function (serverId) {
+        if (!serverId) return;
+        if (!confirm(L.deleteConfirm)) return;
 
-        this.api('/smb/servers/' + serverId, 'DELETE', null, function() {
-            trunplay.loadServers();
+        this.api('/smb/servers/' + encodeURIComponent(serverId), 'DELETE', null, function (result, status) {
+            if (status === 200) {
+                trunplay.loadServers();
+                trunplay.showMessage('success', L.deletedServer);
+            } else {
+                trunplay.showMessage('error', (result && result.message) ? result.message : '删除失败');
+            }
         });
     },
 
-    browseServer: function(serverId) {
-        // Navigate to media browser with this server
-        alert('浏览功能即将实现');
+    browseServer: function (serverId) {
+        if (!serverId) return;
+        this.currentServerId = serverId;
+        this.currentPath = '';
+        this.smbPathPrefix = '';
+        this.browseFiles = [];
+        this.setBrowseMessage('加载中...');
+        document.getElementById('browse-modal').classList.add('show');
+        document.getElementById('browse-modal').onclick = function (e) {
+            if (e.target.id === 'browse-modal') trunplay.hideBrowse();
+        };
+        this.browsePath('');
     },
 
-    init: function() {
+    hideBrowse: function () {
+        document.getElementById('browse-modal').classList.remove('show');
+        document.getElementById('browse-modal').onclick = null;
+    },
+
+    setBrowseMessage: function (message) {
+        var tbody = document.getElementById('browse-file-list-body');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">' + this.escapeHtml(message) + '</td></tr>';
+    },
+
+    browsePath: function (path) {
+        var self = this;
+        if (!this.currentServerId) return;
+
+        this.currentPath = String(path || '').replace(/\\/g, '/');
+        this.updateBreadcrumb();
+        this.setBrowseMessage('加载中...');
+
+        var apiPath = '/smb/servers/' + encodeURIComponent(this.currentServerId) + '/browse?path=' + encodeURIComponent(this.currentPath);
+        this.api(apiPath, 'GET', null, function (data, status) {
+            if (status === 200 && data && Array.isArray(data.items)) {
+                self.browseFiles = data.items;
+                self.smbPathPrefix = (data.path_prefix != null && data.path_prefix !== '') ? String(data.path_prefix) : '';
+                self.renderFileList();
+                return;
+            }
+
+            if (data && Array.isArray(data.available_shares) && data.available_shares.length > 0) {
+                self.currentPath = '';
+                self.smbPathPrefix = '';
+                self.browseFiles = data.available_shares.map(function (share) {
+                    return {
+                        name: share,
+                        type: 'FOLDER',
+                        path: share,
+                        size: 0
+                    };
+                });
+                self.updateBreadcrumb();
+                self.renderFileList();
+                self.showMessage('warning', '未配置共享路径，请先选择一个共享目录');
+                return;
+            }
+
+            var reason = (data && data.message) ? data.message : L.browseFail;
+            self.clearFileList(reason);
+            self.showMessage('error', reason);
+        });
+    },
+
+    updateBreadcrumb: function () {
+        var breadcrumb = document.getElementById('breadcrumb-path');
+        if (!breadcrumb) return;
+
+        while (breadcrumb.firstChild) {
+            breadcrumb.removeChild(breadcrumb.firstChild);
+        }
+
+        var root = document.createElement('a');
+        root.href = '#';
+        root.className = 'trunplay-link';
+        root.textContent = '根目录';
+        root.onclick = function (e) {
+            e.preventDefault();
+            trunplay.browsePath('');
+        };
+        breadcrumb.appendChild(root);
+
+        if (!this.currentPath) {
+            return;
+        }
+
+        var parts = this.currentPath.split('/').filter(function (p) { return !!p; });
+        var pathSoFar = '';
+
+        parts.forEach(function (part) {
+            pathSoFar = pathSoFar ? (pathSoFar + '/' + part) : part;
+
+            var sep = document.createTextNode(' > ');
+            breadcrumb.appendChild(sep);
+
+            var node = document.createElement('a');
+            node.href = '#';
+            node.className = 'trunplay-link';
+            node.textContent = part;
+            var clickPath = pathSoFar;
+            node.onclick = function (e) {
+                e.preventDefault();
+                trunplay.browsePath(clickPath);
+            };
+            breadcrumb.appendChild(node);
+        });
+    },
+
+    toNextBrowsePath: function (file) {
+        var nextPath = String((file && file.path) || '').trim();
+
+        if (!nextPath) {
+            var base = String(this.currentPath || '').replace(/[\\/]+$/, '');
+            var name = String((file && file.name) || '').trim().replace(/^[\\/]+/, '');
+            nextPath = base ? (base + '/' + name) : name;
+        }
+
+        nextPath = nextPath.replace(/\\/g, '/').replace(/^\/+/, '');
+
+        if (this.smbPathPrefix) {
+            var prefix = String(this.smbPathPrefix).replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
+            if (prefix && nextPath.indexOf(prefix + '/') !== 0 && nextPath !== prefix) {
+                nextPath = prefix + '/' + nextPath;
+            }
+        }
+
+        return nextPath;
+    },
+
+    renderFileList: function () {
+        var tbody = document.getElementById('browse-file-list-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (!this.browseFiles || this.browseFiles.length === 0) {
+            this.setBrowseMessage(L.folderEmpty);
+            return;
+        }
+
+        var self = this;
+        var files = this.browseFiles.slice().sort(function (a, b) {
+            var folderA = String(a.type || '').toUpperCase() === 'FOLDER';
+            var folderB = String(b.type || '').toUpperCase() === 'FOLDER';
+            if (folderA !== folderB) return folderA ? -1 : 1;
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        });
+
+        files.forEach(function (file) {
+            var row = tbody.insertRow(-1);
+            var type = String(file.type || '').toUpperCase();
+            var isFolder = type === 'FOLDER';
+
+            row.insertCell(0).textContent = isFolder ? 'DIR' : 'FILE';
+
+            var nameCell = row.insertCell(1);
+            if (isFolder) {
+                var link = document.createElement('a');
+                link.href = '#';
+                link.className = 'trunplay-link';
+                link.textContent = file.name || '-';
+                link.onclick = function (e) {
+                    e.preventDefault();
+                    self.browsePath(self.toNextBrowsePath(file));
+                };
+                nameCell.appendChild(link);
+            } else {
+                nameCell.textContent = file.name || '-';
+            }
+
+            row.insertCell(2).textContent = isFolder ? '文件夹' : (file.type || '-');
+            row.insertCell(3).textContent = isFolder ? '-' : self.formatSize(file.size);
+        });
+    },
+
+    clearFileList: function (reason) {
+        this.setBrowseMessage(reason || L.browseFail);
+    },
+
+    resetFilters: function () {
+        var keywordEl = document.getElementById('smb-filter-keyword');
+        var statusEl = document.getElementById('smb-filter-status');
+        var sortEl = document.getElementById('smb-filter-sort');
+
+        if (keywordEl) keywordEl.value = '';
+        if (statusEl) statusEl.value = '';
+        if (sortEl) sortEl.value = 'connected_first';
+
+        this.applyFilters();
+    },
+
+    init: function () {
+        var self = this;
+        ['server-name', 'server-host', 'server-port', 'server-username', 'server-password', 'server-share-path'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    self.saveServer();
+                }
+            });
+        });
+
+        this.updateStats();
+        this.updateFilterMeta(0, 0);
         this.loadServers();
     }
 };
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var open = document.querySelectorAll('.modal-overlay.show');
+    if (!open.length) return;
+    var top = open[open.length - 1];
+    var closeFn = top.getAttribute('data-close');
+    if (closeFn && trunplay[closeFn]) trunplay[closeFn]();
+});
+
+document.addEventListener('DOMContentLoaded', function () {
     trunplay.init();
 });
 //]]>

@@ -1,0 +1,14 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/playback_test.go
+@@
+ 	code, body = get(t, router, "/api/v1/playback/volume")
+ 	if code != 200 {
+ 		t.Fatalf("GET volume after set: code=%d", code)
+ 	}
+ 	m = parseJSON(t, body)
+-	if v, ok := m["volume"].(float64); !ok || v != 50 {
++	if v, ok := m["volume"].(float64); !ok || v != 0 {
+ 		t.Errorf("volume after set: got %v", m["volume"])
+ 	}
+ }
+*** End Patch

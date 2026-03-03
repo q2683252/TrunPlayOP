@@ -1,0 +1,7 @@
+{
+  "api_port": 8088,
+  "media_port": 8089,
+  "db_path": "/etc/trunplay/trunplay.db",
+  "local_media_paths": ["/mnt", "/tmp", "/root"],
+  "log_level": "INFO"
+}

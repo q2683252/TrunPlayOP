@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/media.go
+@@
+ 	if !allowed {
+ 		logAPI.Warn("media browse local access denied", "path", path)
+-		BadRequest(c, "Access denied: path outside allowed directories")
++		Forbidden(c, "Access denied: path outside allowed directories")
+ 		return
+ 	}
+*** End Patch

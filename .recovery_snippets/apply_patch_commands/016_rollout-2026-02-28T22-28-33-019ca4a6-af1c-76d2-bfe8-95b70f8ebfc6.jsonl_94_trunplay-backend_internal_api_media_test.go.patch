@@ -1,0 +1,25 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/media_test.go
+@@
+ func TestMedia_BrowseLocalInvalidPath(t *testing.T) {
+ 	router, _ := testRouter(t)
+-	// Path outside default roots: expect 400 (access denied), 404 (path not found), or 200 (config-dependent)
++	// Path outside default roots: expect 403 (access denied), 404 (path not found), or 200 (config-dependent)
+ 	code, _ := get(t, router, "/api/v1/media/local?path=/nonexistent_outside_roots_xyz")
+-	if code != 400 && code != 404 && code != 200 {
+-		t.Errorf("expected 400, 404, or 200, got %d", code)
++	if code != 403 && code != 404 && code != 200 {
++		t.Errorf("expected 403, 404, or 200, got %d", code)
+ 	}
+ }
+@@
+ 	// "/tmp_xxx" starts with "/tmp" but is not inside "/tmp/".
+ 	// It must be rejected by root-boundary validation.
+ 	code, _ := get(t, router, "/api/v1/media/local?path=/tmp_trunplay_prefix_bypass_should_deny_xyz")
+-	if code != 400 {
+-		t.Fatalf("expected 400 for root-prefix bypass path, got %d", code)
++	if code != 403 {
++		t.Fatalf("expected 403 for root-prefix bypass path, got %d", code)
+ 	}
+ }
+*** End Patch

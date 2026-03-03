@@ -1,0 +1,11 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler.go
+@@
+ import (
+ 	"context"
+ 	"database/sql"
++	"errors"
+ 	"fmt"
+ 	"strconv"
+ 	"strings"
+*** End Patch

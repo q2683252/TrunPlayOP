@@ -1,0 +1,14 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/playback_test.go
+@@
+ import (
++	"strings"
+ 	"testing"
+ )
+@@
+-	if msg != "" && msg != "投屏设备离线或不可用" && len(msg) < len("投屏设备不可用:") {
++	if msg != "" && msg != "投屏设备离线或不可用" && !strings.HasPrefix(msg, "投屏设备不可用:") {
+ 		t.Logf("playback message: %s", msg)
+ 	}
+ }
+*** End Patch

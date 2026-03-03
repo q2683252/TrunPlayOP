@@ -1,0 +1,143 @@
+<%#
+TrunPlay - Playback History Page
+%>
+
+<%+header%>
+
+<h2><%:播放历史%></h2>
+
+<div class="cbi-section">
+    <div class="cbi-section-node">
+        <button class="cbi-button" onclick="trunplay.loadHistory()"><%:刷新%></button>
+        <button class="cbi-button cbi-button-remove" onclick="trunplay.clearHistory()"><%:清空历史%></button>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:历史记录%></h3>
+    <table class="cbi-section-table" id="history-table">
+        <tr class="cbi-section-table-titles">
+            <th><%:时间%></th>
+            <th><%:计划%></th>
+            <th><%:媒体%></th>
+            <th><%:设备%></th>
+            <th><%:播放时长%></th>
+            <th><%:状态%></th>
+        </tr>
+        <tr id="history-loading">
+            <td colspan="6"><%:加载中...%></td>
+        </tr>
+    </table>
+
+    <div id="pagination" style="margin-top:10px;"></div>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+    currentPage: 1,
+    pageSize: 20,
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', this.apiBase, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    formatDate: function(timestamp) {
+        var d = new Date(timestamp);
+        return d.toLocaleString('zh-CN');
+    },
+
+    formatDuration: function(ms) {
+        var s = Math.floor(ms / 1000);
+        var m = Math.floor(s / 60);
+        var sec = s % 60;
+        return m + '分' + sec + '秒';
+    },
+
+    statusText: {
+        'IN_PROGRESS': '进行中',
+        'COMPLETED': '已完成',
+        'STOPPED': '已停止',
+        'ERROR': '错误'
+    },
+
+    loadHistory: function(page) {
+        var self = this;
+        page = page || this.currentPage;
+
+        this.api('/history?page=' + page + '&page_size=' + this.pageSize, 'GET', null, function(data) {
+            var table = document.getElementById('history-table');
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            if (!data || !data.items || data.items.length === 0) {
+                var row = table.insertRow(-1);
+                row.innerHTML = '<td colspan="6">暂无播放历史</td>';
+                document.getElementById('pagination').innerHTML = '';
+                return;
+            }
+
+            data.items.forEach(function(item) {
+                var row = table.insertRow(-1);
+                var statusStyle = item.end_status === 'COMPLETED' ? 'color:green;' :
+                                  item.end_status === 'ERROR' ? 'color:red;' : '';
+                row.innerHTML =
+                    '<td>' + self.formatDate(item.actual_start_time) + '</td>' +
+                    '<td>' + (item.plan_title || '-') + '</td>' +
+                    '<td>' + (item.media_name || '-') + '</td>' +
+                    '<td>' + (item.device_name || '-') + '</td>' +
+                    '<td>' + self.formatDuration(item.played_duration || 0) + '</td>' +
+                    '<td style="' + statusStyle + '">' + (self.statusText[item.end_status] || item.end_status) + '</td>';
+            });
+
+            // Pagination
+            var totalPages = Math.ceil(data.total / self.pageSize);
+            var paginationHtml = '';
+            if (totalPages > 1) {
+                paginationHtml = '共 ' + data.total + ' 条，第 ' + page + '/' + totalPages + ' 页 ';
+                if (page > 1) {
+                    paginationHtml += '<button class="cbi-button" onclick="trunplay.loadHistory(' + (page - 1) + ')">上一页</button> ';
+                }
+                if (page < totalPages) {
+                    paginationHtml += '<button class="cbi-button" onclick="trunplay.loadHistory(' + (page + 1) + ')">下一页</button>';
+                }
+            }
+            document.getElementById('pagination').innerHTML = paginationHtml;
+            self.currentPage = page;
+        });
+    },
+
+    clearHistory: function() {
+        if (!confirm('确定要清空所有播放历史吗？此操作不可撤销。')) return;
+
+        this.api('/history', 'DELETE', null, function() {
+            trunplay.loadHistory(1);
+        });
+    },
+
+    init: function() {
+        this.loadHistory(1);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>

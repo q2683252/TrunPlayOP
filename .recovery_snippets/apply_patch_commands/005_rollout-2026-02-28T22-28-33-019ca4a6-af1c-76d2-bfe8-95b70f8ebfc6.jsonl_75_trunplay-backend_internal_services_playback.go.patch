@@ -1,0 +1,93 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/playback.go
+@@
+ 				preItems, preErr := db.GetPlanMediaPlaylist(tx, playlistPlanID)
+ 				if preErr != nil || len(preItems) == 0 {
+ 					logPlayback.Warn("StartPlayback pre-validate plan playlist failed", "plan_id", playlistPlanID, "err", preErr, "item_count", len(preItems))
+-					return false, fmt.Errorf("计划未关联可播放媒体")
++					return false, newPlaybackError(ErrPlanNoPlayableMedia, "计划未关联可播放媒体")
+ 				}
+ 			} else {
+ 				preTask, preErr := db.GetStudyTask(tx, token)
+ 				if preErr != nil || preTask == nil {
+ 					logPlayback.Warn("StartPlayback pre-validate study task not found, skipping stop of current playback", "task_id", token, "err", preErr)
+-					return false, fmt.Errorf("学习任务不存在")
++					return false, newPlaybackError(ErrStudyTaskNotFound, "学习任务不存在")
+ 				}
+ 				preItems, _ := preTask["media_items"]
+ 				preItemsList, _ := preItems.([]map[string]interface{})
+ 				if len(preItemsList) == 0 {
+ 					logPlayback.Warn("StartPlayback pre-validate study task has no media", "task_id", token)
+-					return false, fmt.Errorf("学习任务中没有媒体文件")
++					return false, newPlaybackError(ErrStudyTaskNoMedia, "学习任务中没有媒体文件")
+ 				}
+ 			}
+ 		}
+ 	}
+@@
+ 	if deviceID == "" {
+ 		logPlayback.Warn("StartPlayback no device_id on plan", "plan_id", planID)
+-		return false, fmt.Errorf("请先为计划选择投屏设备")
++		return false, newPlaybackError(ErrPlanNoDevice, "请先为计划选择投屏设备")
+ 	}
+@@
+ 	if !ok {
+ 		logPlayback.Warn("StartPlayback device offline or unreachable", "plan_id", planID, "device_id", deviceID)
+ 		if checkErr != nil {
+-			return false, fmt.Errorf("投屏设备不可用: %w", checkErr)
++			return false, wrapPlaybackError(ErrDeviceUnavailable, fmt.Sprintf("投屏设备不可用: %v", checkErr), checkErr)
+ 		}
+-		return false, fmt.Errorf("投屏设备离线或不可用")
++		return false, newPlaybackError(ErrDeviceUnavailable, "投屏设备离线或不可用")
+ 	}
+@@
+ 			playlist, err := db.GetPlanMediaPlaylist(tx, playlistPlanID)
+ 			if err != nil || len(playlist) == 0 {
+ 				logPlayback.Warn("StartPlayback plan playlist empty", "plan_id", playlistPlanID, "err", err)
+-				return false, fmt.Errorf("计划未关联可播放媒体")
++				return false, newPlaybackError(ErrPlanNoPlayableMedia, "计划未关联可播放媒体")
+ 			}
+@@
+ 			task, err := db.GetStudyTask(tx, token)
+ 			if err != nil || task == nil {
+ 				logPlayback.Warn("StartPlayback study task not found", "task_id", token, "err", err)
+-				return false, fmt.Errorf("学习任务不存在")
++				return false, newPlaybackError(ErrStudyTaskNotFound, "学习任务不存在")
+ 			}
+ 			itemsRaw, _ := task["media_items"]
+ 			items, _ := itemsRaw.([]map[string]interface{})
+ 			if len(items) == 0 {
+ 				logPlayback.Warn("StartPlayback study task has no media", "task_id", token)
+-				return false, fmt.Errorf("学习任务中没有媒体文件")
++				return false, newPlaybackError(ErrStudyTaskNoMedia, "学习任务中没有媒体文件")
+ 			}
+@@
+ 		mediaURL, historySourceType, historyServerID = buildMediaURLFromStudyTaskItem(item)
+ 		if mediaURL == "" {
+-			return false, fmt.Errorf("学习任务中媒体地址无效")
++			return false, newPlaybackError(ErrInvalidMediaURL, "学习任务中媒体地址无效")
+ 		}
+ 	}
+@@
+ 		rest := strings.TrimPrefix(mediaURL, "smb://")
+ 		parts := strings.SplitN(rest, "/", 2)
+ 		if len(parts) < 2 {
+-			return false, fmt.Errorf("SMB 地址格式错误，应为 smb://服务器ID/路径")
++			return false, newPlaybackError(ErrInvalidMediaURL, "SMB 地址格式错误，应为 smb://服务器ID/路径")
+ 		}
+@@
+-		if err != nil || server == nil {
+-			return false, err
++		if err != nil {
++			return false, err
++		}
++		if server == nil {
++			return false, newPlaybackError(ErrSmbServerNotFound, "SMB 服务器不存在")
+ 		}
+@@
+ 	} else {
+ 		logPlayback.Warn("StartPlayback unsupported media_url format", "media_url", mediaURL)
+-		return false, fmt.Errorf("不支持的媒体地址，请使用 file:// 或 smb:// 格式")
++		return false, newPlaybackError(ErrInvalidMediaURL, "不支持的媒体地址，请使用 file:// 或 smb:// 格式")
+ 	}
+*** End Patch

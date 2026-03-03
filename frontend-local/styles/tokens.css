@@ -1,0 +1,27 @@
+:root {
+  --tp-bg: #f3f8f8;
+  --tp-bg-strong: #e8f3f2;
+  --tp-surface: #ffffff;
+  --tp-surface-soft: #f7fbfb;
+  --tp-primary: #0f766e;
+  --tp-primary-strong: #115e59;
+  --tp-accent: #f97316;
+  --tp-accent-soft: #ffedd5;
+  --tp-success: #16a34a;
+  --tp-warning: #f59e0b;
+  --tp-danger: #dc2626;
+  --tp-info: #0284c7;
+  --tp-border: #d4e6e4;
+  --tp-border-strong: #b8d6d3;
+  --tp-text: #0f172a;
+  --tp-text-soft: #475569;
+  --tp-text-muted: #64748b;
+  --tp-radius-sm: 10px;
+  --tp-radius-md: 14px;
+  --tp-radius-lg: 20px;
+  --tp-shadow-sm: 0 6px 18px -14px rgba(2, 44, 34, 0.35);
+  --tp-shadow-md: 0 16px 35px -25px rgba(15, 23, 42, 0.5);
+  --tp-shadow-lg: 0 30px 70px -45px rgba(15, 23, 42, 0.55);
+  --tp-page-width: 1260px;
+  --tp-font: "Outfit", "Noto Sans SC", "PingFang SC", "Avenir Next", sans-serif;
+}

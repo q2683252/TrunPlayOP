@@ -13,8 +13,7 @@ class TestPlanAPI:
         response = client.get("/api/v1/plans")
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 0
-        assert data["data"]["items"] == []
+        assert data == []
 
     def test_create_plan(self, client):
         """POST /plans should create a new plan."""
@@ -28,9 +27,8 @@ class TestPlanAPI:
         response = client.post("/api/v1/plans", json=plan_data)
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 0
-        assert data["data"]["title"] == "Morning Routine"
-        assert "id" in data["data"]
+        assert data["title"] == "Morning Routine"
+        assert "id" in data
 
     def test_create_plan_with_all_fields(self, client):
         """POST /plans with all optional fields."""
@@ -47,7 +45,7 @@ class TestPlanAPI:
         }
         response = client.post("/api/v1/plans", json=plan_data)
         assert response.status_code == 200
-        data = response.json()["data"]
+        data = response.json()
         assert data["skip_holidays"] is True
         assert data["is_active"] is False
         assert data["play_mode"] == "LOOP"
@@ -62,12 +60,12 @@ class TestPlanAPI:
             "repeat_days": "1,2,3",
             "media_url": "smb://nas/video.mp4"
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Then get it
         response = client.get(f"/api/v1/plans/{plan_id}")
         assert response.status_code == 200
-        assert response.json()["data"]["id"] == plan_id
+        assert response.json()["id"] == plan_id
 
     def test_get_plan_nonexistent(self, client):
         """GET /plans/{id} should return 404 for non-existent plan."""
@@ -84,14 +82,14 @@ class TestPlanAPI:
             "repeat_days": "1,2,3",
             "media_url": "smb://nas/video.mp4"
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Update
         response = client.put(f"/api/v1/plans/{plan_id}", json={
             "title": "Updated"
         })
         assert response.status_code == 200
-        assert response.json()["data"]["title"] == "Updated"
+        assert response.json()["title"] == "Updated"
 
     def test_update_plan_nonexistent(self, client):
         """PUT /plans/{id} should return 404 for non-existent plan."""
@@ -108,7 +106,7 @@ class TestPlanAPI:
             "repeat_days": "1,2,3",
             "media_url": "smb://nas/video.mp4"
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Delete
         response = client.delete(f"/api/v1/plans/{plan_id}")
@@ -134,12 +132,12 @@ class TestPlanAPI:
             "media_url": "smb://nas/video.mp4",
             "is_active": False
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Activate
         response = client.post(f"/api/v1/plans/{plan_id}/activate")
         assert response.status_code == 200
-        assert response.json()["data"]["is_active"] is True
+        assert response.json()["is_active"] is True
 
     def test_deactivate_plan(self, client):
         """POST /plans/{id}/deactivate should deactivate the plan."""
@@ -152,12 +150,12 @@ class TestPlanAPI:
             "media_url": "smb://nas/video.mp4",
             "is_active": True
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Deactivate
         response = client.post(f"/api/v1/plans/{plan_id}/deactivate")
         assert response.status_code == 200
-        assert response.json()["data"]["is_active"] is False
+        assert response.json()["is_active"] is False
 
     def test_reset_plan_progress(self, client):
         """POST /plans/{id}/reset-progress should reset progress."""
@@ -169,10 +167,10 @@ class TestPlanAPI:
             "repeat_days": "1,2,3",
             "media_url": "smb://nas/video.mp4"
         })
-        plan_id = create_resp.json()["data"]["id"]
+        plan_id = create_resp.json()["id"]
 
         # Reset progress
         response = client.post(f"/api/v1/plans/{plan_id}/reset-progress")
         assert response.status_code == 200
-        data = response.json()["data"]
-        assert data["last_playback_position"] == 0
+        data = response.json()
+        assert "message" in data

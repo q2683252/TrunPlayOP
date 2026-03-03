@@ -1,0 +1,14 @@
+*** Begin Patch
+*** Update File: frontend-local/app/boot.js
+@@
+ async function warmupDataForOnboarding() {
+   try {
+     await Promise.all([
+       app.features.smb.loadSmb({ silent: true }),
+       app.features.devices.loadDevices({ silent: true }),
+       app.features.study.loadStudyTasks({ silent: true }),
+-      app.features.plans.loadPlans({ silent: true }),
+-      app.features.status.loadStatus({ silent: true }),
+     ]);
+   } catch (err) {
+*** End Patch

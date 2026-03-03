@@ -1,0 +1,55 @@
+*** Begin Patch
+*** Update File: frontend-local/app.js
+@@
+   function showPlanFileBrowser() {
+     planBrowserSource = 'smb';
+     planBrowserPath = '';
+     planBrowserPathPrefix = '';
+     planBrowserServerId = '';
+-    planTempSelected = [];
+     setPlanPreviewFile(null);
+     document.getElementById('plan-smb-server').value = '';
+@@
+     document.getElementById('plan-smb-server-row').style.display = '';
+     document.getElementById('plan-source-local').classList.remove('cbi-button-positive');
+     document.getElementById('plan-source-smb').classList.add('cbi-button-positive');
+     document.getElementById('plan-file-list-body').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">请选择来源或服务器</td></tr>';
+     document.getElementById('plan-breadcrumb-path').innerHTML = '-';
+-    document.getElementById('plan-selected-count').textContent = '已选择: 0 个文件/文件夹';
++    resetPlanTempSelection();
+     // Default target is plan (legacy), study task sets 'study' before calling
+     if (!window._fileBrowserTarget) window._fileBrowserTarget = 'plan';
+     document.getElementById('modal-plan-browser').style.display = 'flex';
+   }
++  function resetPlanTempSelection() {
++    planTempSelected = [];
++    document.getElementById('plan-selected-count').textContent = '已选择: 0 个文件/文件夹';
++    var selectAll = document.getElementById('plan-file-select-all');
++    if (selectAll) selectAll.checked = false;
++  }
+   function hidePlanFileBrowser() {
+     document.getElementById('modal-plan-browser').style.display = 'none';
+   }
+@@
+     planBrowserPath = '';
+     planBrowserPathPrefix = '';
+     planBrowserServerId = '';
++    resetPlanTempSelection();
+     setPlanPreviewFile(null);
+     document.getElementById('plan-smb-server').value = '';
+@@
+   }
+   function planBrowsePath(path) {
+     planBrowserPath = path;
++    resetPlanTempSelection();
+     setPlanPreviewFile(null);
+     var pathEl = document.getElementById('plan-breadcrumb-path');
+@@
+   document.getElementById('plan-smb-server').onchange = function () {
+     planBrowserServerId = document.getElementById('plan-smb-server').value;
++    resetPlanTempSelection();
+     if (planBrowserServerId) { planBrowserPath = ''; planBrowserPathPrefix = ''; planBrowsePath(''); } else {
+       document.getElementById('plan-file-list-body').innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">请选择服务器</td></tr>';
+     }
+   };
+*** End Patch

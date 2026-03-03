@@ -1,0 +1,7 @@
+{
+  "browser": {
+    "contextOptions": {
+      "userAgent": "TrunPlayPlaywrightBot/1.0"
+    }
+  }
+}

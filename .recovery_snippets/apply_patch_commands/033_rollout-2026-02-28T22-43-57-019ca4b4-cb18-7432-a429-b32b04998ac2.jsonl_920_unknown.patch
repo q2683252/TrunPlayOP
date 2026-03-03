@@ -1,0 +1,5 @@
+*** Begin Patch')
+        e=cmd.rfind('*** End Patch')
+        if s<0 or e<0:
+            continue
+        patch=cmd[s:e+len('*** End Patch

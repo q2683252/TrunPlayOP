@@ -1,0 +1,44 @@
+# OpenWrt rootfs + opkg 实际安装用镜像
+# 基于 openwrt/rootfs，在构建阶段从 23.05.2 x86_64 base 下载 opkg 及其依赖，
+# 解压到 rootfs，使容器内可执行真实 opkg install。
+# 使用: docker build -f tools/Dockerfile.openwrt-opkg -t openwrt-opkg .
+
+ARG OPENWRT_ROOTFS=openwrt/rootfs
+ARG OPENWRT_RELEASE=23.05.2
+ARG OPENWRT_ARCH=x86_64
+ARG BASE_URL=https://downloads.openwrt.org/releases/${OPENWRT_RELEASE}/packages/${OPENWRT_ARCH}/base
+
+# 阶段1: 在带 ar/tar 的环境里下载 ipk 并解压到 /opkg-root
+FROM alpine:3.18 AS builder
+RUN apk add --no-cache curl binutils tar gzip
+
+WORKDIR /ipk
+# opkg 及依赖（与 Packages 中 Depends 一致）
+RUN set -e; \
+    for f in \
+        libubox20230523_2023-05-23-75a3b870-1_x86_64.ipk \
+        libuclient20201210_2023-04-13-007d9454-1_x86_64.ipk \
+        uclient-fetch_2023-04-13-007d9454-1_x86_64.ipk \
+        opkg_2022-02-24-d038e5b6-2_x86_64.ipk \
+    ; do \
+        echo "Downloading $$f..."; \
+        curl -sSL -o "$$f" "${BASE_URL}/$$f"; \
+    done
+
+RUN mkdir -p /opkg-root
+RUN for ipk in *.ipk; do \
+        (cd /opkg-root && ar x "/ipk/$ipk" && tar xzf data.tar.gz && rm -f data.tar.gz control.tar.gz debian-binary); \
+    done
+
+# 阶段2: 使用 OpenWrt rootfs，把解压出的文件合并进去
+FROM ${OPENWRT_ROOTFS}
+COPY --from=builder /opkg-root/ /
+
+# opkg 需要可写目录
+RUN mkdir -p /var/opkg /tmp/opkg /etc/opkg
+
+# 可选：添加官方 base 源，便于 opkg update（安装本地 ipk 可不依赖网络）
+RUN echo "src/gz openwrt_base https://downloads.openwrt.org/releases/23.05.2/packages/x86_64/base" > /etc/opkg/distfeeds.conf
+
+# 验证
+RUN opkg --version || true

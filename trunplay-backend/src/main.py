@@ -133,10 +133,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Add CORS middleware
+# Get config for CORS
+config = get_config()
+
+# Add CORS middleware with configurable origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

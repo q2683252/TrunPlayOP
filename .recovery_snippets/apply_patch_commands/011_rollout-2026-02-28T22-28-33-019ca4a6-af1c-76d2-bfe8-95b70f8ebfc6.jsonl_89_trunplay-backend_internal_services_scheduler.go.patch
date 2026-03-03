@@ -1,0 +1,25 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler.go
+@@
+-	// 2. Today not in repeat_days → skip
+-	allowed := parseRepeatDays(repeatDays)
++	// 2. Today not in repeat_days → skip
++	allowed, repeatDaysValid := parseRepeatDaysStrict(repeatDays)
++	if !repeatDaysValid {
++		logScheduler.Warn("skip plan with invalid repeat_days", "date", todayStr, "repeat_days", repeatDays)
++		return false
++	}
+ 	if allowed != nil && !allowed[now.Weekday()] {
+ 		return false
+ 	}
+@@
+-	minute, hour, ok := parseStartTime(startTime)
+-	if !ok {
+-		// Invalid start_time defaults to 00:00
+-		minute, hour = 0, 0
++	minute, hour, ok := parseStartTime(startTime)
++	if !ok {
++		logScheduler.Warn("skip plan with invalid start_time", "date", todayStr, "start_time", startTime)
++		return false
+ 	}
+*** End Patch

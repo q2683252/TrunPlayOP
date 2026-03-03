@@ -1,0 +1,18 @@
+{
+    "luci-app-trunplay": {
+        "description": "Grant access to TrunPlay scheduled DLNA casting",
+        "read": {
+            "ubus": {
+                "luci": ["getFeatures"]
+            },
+            "file": {
+                "/etc/trunplay/config.json": ["read"]
+            }
+        },
+        "write": {
+            "file": {
+                "/etc/trunplay/config.json": ["write"]
+            }
+        }
+    }
+}

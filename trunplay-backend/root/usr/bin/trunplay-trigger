@@ -1,18 +1,88 @@
 #!/bin/sh
 # TrunPlay cron trigger script
-# Called by cron to start scheduled playback
+# Called by cron to start scheduled playback with retry and logging
 
 PLAN_ID="$1"
 API_URL="http://127.0.0.1:8088/api/v1"
+MAX_RETRIES=3
+RETRY_DELAY=5
+LOG_TAG="trunplay"
+TEMP_LOG="/tmp/trunplay-trigger-${PLAN_ID}.log"
 
+# Validate input
 if [ -z "$PLAN_ID" ]; then
-    echo "Usage: trunplay-trigger <plan_id>"
+    logger -t "$LOG_TAG" -p user.err "Error: Plan ID not provided"
+    echo "Usage: trunplay-trigger <plan_id>" >&2
     exit 1
 fi
 
-# Trigger playback via API
-curl -s -X POST "${API_URL}/plans/${PLAN_ID}/play" \
-    -H "Content-Type: application/json" \
-    > /dev/null 2>&1
+# Log function
+log_info() {
+    logger -t "$LOG_TAG" -p user.info "$1"
+    echo "[INFO] $1" >> "$TEMP_LOG"
+}
 
-exit $?
+log_error() {
+    logger -t "$LOG_TAG" -p user.err "$1"
+    echo "[ERROR] $1" >> "$TEMP_LOG"
+}
+
+log_info "Triggering playback for plan: $PLAN_ID"
+
+# Retry loop
+for attempt in $(seq 1 $MAX_RETRIES); do
+    log_info "Attempt $attempt/$MAX_RETRIES"
+
+    # Make API request and capture response
+    HTTP_CODE=$(curl -s -w "%{http_code}" -o "$TEMP_LOG.response" \
+        -X POST "${API_URL}/plans/${PLAN_ID}/play" \
+        -H "Content-Type: application/json" \
+        -m 30)
+
+    CURL_EXIT=$?
+
+    # Check curl exit code
+    if [ $CURL_EXIT -ne 0 ]; then
+        log_error "curl failed with exit code $CURL_EXIT (attempt $attempt/$MAX_RETRIES)"
+
+        # Wait before retry (except on last attempt)
+        if [ $attempt -lt $MAX_RETRIES ]; then
+            log_info "Waiting ${RETRY_DELAY}s before retry..."
+            sleep $RETRY_DELAY
+            continue
+        fi
+    else
+        # Check HTTP status code
+        case "$HTTP_CODE" in
+            200|201|202)
+                log_info "Playback triggered successfully (HTTP $HTTP_CODE)"
+                cat "$TEMP_LOG.response" >> "$TEMP_LOG" 2>/dev/null
+                rm -f "$TEMP_LOG.response" "$TEMP_LOG"
+                exit 0
+                ;;
+            404)
+                log_error "Plan not found (HTTP 404)"
+                rm -f "$TEMP_LOG.response"
+                exit 1
+                ;;
+            50*)
+                log_error "Server error (HTTP $HTTP_CODE, attempt $attempt/$MAX_RETRIES)"
+                if [ $attempt -lt $MAX_RETRIES ]; then
+                    sleep $RETRY_DELAY
+                    continue
+                fi
+                ;;
+            *)
+                log_error "Request failed with HTTP $HTTP_CODE"
+                cat "$TEMP_LOG.response" >> "$TEMP_LOG" 2>/dev/null
+                rm -f "$TEMP_LOG.response"
+                exit 1
+                ;;
+        esac
+    fi
+done
+
+# All retries exhausted
+log_error "Failed to trigger playback after $MAX_RETRIES attempts"
+rm -f "$TEMP_LOG.response"
+exit 1

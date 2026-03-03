@@ -1,0 +1,33 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/plans/index.js
+@@
+ export function registerPlans(app) {
+-  const log = app.log.plans;
+   const tbody = byId('plans-tbody');
+@@
+   async function openPlanModal(planId = null, options = {}) {
+     resetPlanForm();
+@@
+-    const [studyTasks, planDetail] = await Promise.all([
++    const [studyTasks, planDetail] = await Promise.all([
+       app.api.get('/study/tasks', { requestKey: 'plans:studyTasks' }).catch(() => []),
+       planId ? app.api.get(`/plans/${planId}`, { requestKey: 'plans:detail' }).catch(() => null) : Promise.resolve(null),
+-      fillDeviceSelect(options?.draft?.device_id || (planDetail?.device_id || '')),
+     ]);
+@@
+-    if (detail) {
++    if (detail) {
+       applyDraft({
+         title: detail.title || '',
+         start_time: String(detail.start_time || '09:00').slice(0, 5),
+@@
+         play_mode: detail.play_mode || 'SEQUENTIAL',
+       });
+     }
++
++    await fillDeviceSelect(options?.draft?.device_id || detail?.device_id || '');
+@@
+-    app.ui.openModal('modal-plan', addBtn);
++    app.ui.openModal('modal-plan', options.trigger || addBtn);
+   }
+*** End Patch

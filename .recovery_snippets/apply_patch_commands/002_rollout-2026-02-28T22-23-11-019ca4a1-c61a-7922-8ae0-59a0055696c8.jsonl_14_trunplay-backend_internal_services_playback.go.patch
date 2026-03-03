@@ -1,0 +1,21 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/playback.go
+@@
+ func shouldAutoRecoverFromExternalStop(reason string, savePos, saveDur int) bool {
+ 	if saveDur <= 0 || savePos <= 0 {
+ 		return false
+ 	}
+ 	if savePos >= saveDur-naturalCompleteThreshold {
+ 		return false
+ 	}
+ 	switch reason {
+-	case "DEVICE_STOP", "STALL", "POSITION_POLL_FAILED":
++	// DEVICE_STOP can be a deliberate stop action from the TV remote.
++	// Avoid auto-resume in that case; only recover from obvious transient errors.
++	case "STALL", "POSITION_POLL_FAILED":
+ 		return true
+ 	default:
+ 		return false
+ 	}
+ }
+*** End Patch

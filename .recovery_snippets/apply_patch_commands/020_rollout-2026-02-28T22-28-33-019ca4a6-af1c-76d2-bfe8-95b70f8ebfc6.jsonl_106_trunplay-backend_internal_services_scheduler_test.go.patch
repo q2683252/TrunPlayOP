@@ -1,0 +1,12 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler_test.go
+@@
+ 	tx, err := database.Begin()
+ 	if err != nil {
+ 		t.Fatalf("begin tx: %v", err)
+ 	}
++	if _, err := dbstore.CreateDevice(tx, "dev-1", "test-device", "192.0.2.11", "MediaRenderer", "", true, time.Now().UnixMilli(), "", "TEST", "DLNA"); err != nil {
++		t.Fatalf("create device: %v", err)
++	}
+ 	created, err := dbstore.CreatePlan(tx, "Transient", "09:00", "", "1,2,3,4,5", "dev-1", "noop://media", "SEQUENTIAL", false, true)
+*** End Patch

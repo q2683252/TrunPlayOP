@@ -1,0 +1,16 @@
+*** Begin Patch
+*** Update File: frontend-local/styles/components.css
+@@
+ .tp-inline-empty {
+@@
+ }
++
++.tp-plan-task-box {
++  max-height: 220px;
++  overflow-y: auto;
++  border: 1px solid var(--tp-border);
++  border-radius: 10px;
++  background: var(--tp-surface-soft);
++  padding: 0.6rem;
++}
+*** End Patch

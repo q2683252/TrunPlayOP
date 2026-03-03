@@ -1,0 +1,29 @@
+*** Begin Patch
+*** Add File: trunplay-backend/internal/api/path_allowlist_test.go
++package api
++
++import (
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestIsPathWithinRoots_MissingRootDoesNotAllowAll(t *testing.T) {
++	if isPathWithinRoots("/etc/passwd", []string{"/definitely-missing-root-trunplay"}) {
++		t.Fatal("missing root must not allow unrelated absolute path")
++	}
++}
++
++func TestIsPathWithinRoots_ExistingRootAllowsChild(t *testing.T) {
++	root := t.TempDir()
++	childDir := filepath.Join(root, "videos")
++	if err := os.MkdirAll(childDir, 0755); err != nil {
++		t.Fatalf("mkdir child: %v", err)
++	}
++	childPath := filepath.Join(childDir, "sample.mp4")
++	if !isPathWithinRoots(childPath, []string{root}) {
++		t.Fatalf("expected %q to be allowed under root %q", childPath, root)
++	}
++}
++
+*** End Patch

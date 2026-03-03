@@ -1,0 +1,31 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/services/scheduler.go
+@@
+ func parseRepeatDays(repeatDays string) map[time.Weekday]bool {
+ 	s := strings.TrimSpace(repeatDays)
+ 	if s == "" {
+ 		return nil
+ 	}
+@@
+ 	return out
+ }
++
++func parseRepeatDaysStrict(repeatDays string) (map[time.Weekday]bool, bool) {
++	s := strings.TrimSpace(repeatDays)
++	if s == "" {
++		return nil, true
++	}
++	out := parseRepeatDays(s)
++	if out == nil {
++		return nil, false
++	}
++	parts := strings.Split(s, ",")
++	for _, p := range parts {
++		d, err := strconv.Atoi(strings.TrimSpace(p))
++		if err != nil || d < 0 || d > 7 {
++			return nil, false
++		}
++	}
++	return out, true
++}
+*** End Patch

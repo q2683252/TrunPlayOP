@@ -1,129 +1,219 @@
-<%#
-TrunPlay - Settings Page
-%>
+<%# TrunPlay - Settings Page %>
 
-<%+header%>
+    <%+header%>
+        <%+trunplay/custom_css%>
 
-<h2><%:设置%></h2>
+            <h2>
+                <%:设置%>
+            </h2>
 
-<div class="cbi-section">
-    <h3><%:服务状态%></h3>
-    <div class="cbi-section-node">
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:后端服务%></label>
-            <div class="cbi-value-field">
-                <span id="service-status"><%:检查中...%></span>
-                <button class="cbi-button" onclick="trunplay.restartService()"><%:重启服务%></button>
+            <div class="cbi-section">
+                <h3>
+                    <%:服务状态%>
+                </h3>
+                <div class="cbi-section-node">
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:后端服务%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <span id="service-status">
+                                <%:检查中...%>
+                            </span>
+                            <button class="cbi-button" onclick="trunplay.restartService()">
+                                <%:重启服务%>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="cbi-section">
-    <h3><%:服务配置%></h3>
-    <div class="cbi-section-node">
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:API 端口%></label>
-            <div class="cbi-value-field">
-                <span id="api-port">8088</span>
+            <div class="cbi-section">
+                <h3>
+                    <%:服务配置%>
+                        <button id="edit-config-btn" class="cbi-button" onclick="trunplay.toggleEditConfig()"
+                            style="float:right;">
+                            <%:编辑%>
+                        </button>
+                </h3>
+                <div class="cbi-section-node">
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:API 端口%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <span id="api-port" class="config-display">8088</span>
+                            <input type="number" id="api-port-input" class="config-input" value="8088"
+                                style="display:none;">
+                        </div>
+                    </div>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:媒体端口%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <span id="media-port" class="config-display">8089</span>
+                            <input type="number" id="media-port-input" class="config-input" value="8089"
+                                style="display:none;">
+                        </div>
+                    </div>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:数据库路径%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <span id="db-path" class="config-display">/etc/trunplay/trunplay.db</span>
+                            <input type="text" id="db-path-input" class="config-input" value="/etc/trunplay/trunplay.db"
+                                style="display:none; width:100%;">
+                        </div>
+                    </div>
+                    <div id="config-actions" style="margin-top:15px; text-align:right; display:none;">
+                        <button class="cbi-button" onclick="trunplay.cancelEditConfig()">
+                            <%:取消%>
+                        </button>
+                        <button class="cbi-button cbi-button-save" onclick="trunplay.saveConfig()">
+                            <%:保存%>
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:媒体端口%></label>
-            <div class="cbi-value-field">
-                <span id="media-port">8089</span>
+
+            <div class="cbi-section">
+                <h3>
+                    <%:关于%>
+                </h3>
+                <div class="cbi-section-node">
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:版本%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <span>1.0.0</span>
+                        </div>
+                    </div>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:说明%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <span>TrunPlay 定时投屏 - OpenWrt 版本</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:数据库路径%></label>
-            <div class="cbi-value-field">
-                <span id="db-path">/etc/trunplay/trunplay.db</span>
-            </div>
-        </div>
-    </div>
-</div>
 
-<div class="cbi-section">
-    <h3><%:关于%></h3>
-    <div class="cbi-section-node">
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:版本%></label>
-            <div class="cbi-value-field">
-                <span>1.0.0</span>
-            </div>
-        </div>
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:说明%></label>
-            <div class="cbi-value-field">
-                <span>TrunPlay 定时投屏 - OpenWrt 版本</span>
-            </div>
-        </div>
-    </div>
-</div>
+            <script type="text/javascript">
+                //<![CDATA[
+                var trunplay = {
+                    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
 
-<script type="text/javascript">
-//<![CDATA[
-var trunplay = {
-    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+                    api: function (path, method, body, callback) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('POST', this.apiBase, true);
+                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                        xhr.onreadystatechange = function () {
+                            if (xhr.readyState === 4) {
+                                var data = null;
+                                try { data = JSON.parse(xhr.responseText); } catch (e) { }
+                                if (callback) callback(data, xhr.status);
+                            }
+                        };
+                        var params = 'path=' + encodeURIComponent(path);
+                        if (method) params += '&method=' + encodeURIComponent(method);
+                        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+                        xhr.send(params);
+                    },
 
-    api: function(path, method, body, callback) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', this.apiBase, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                var data = null;
-                try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                if (callback) callback(data, xhr.status);
-            }
-        };
-        var params = 'path=' + encodeURIComponent(path);
-        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
-        xhr.send(params);
-    },
+                    checkService: function () {
+                        this.api('/system/status', 'GET', null, function (data) {
+                            if (data && data.version) {
+                                document.getElementById('service-status').innerHTML = '<span style="color:green;">运行中</span>';
+                            } else {
+                                document.getElementById('service-status').innerHTML = '<span style="color:red;">未运行</span>';
+                            }
+                        });
 
-    checkService: function() {
-        this.api('/system/status', 'GET', null, function(data) {
-            if (data && data.version) {
-                document.getElementById('service-status').innerHTML = '<span style="color:green;">运行中</span>';
-            } else {
-                document.getElementById('service-status').innerHTML = '<span style="color:red;">未运行</span>';
-            }
-        });
+                        this.api('/system/config', 'GET', null, function (data) {
+                            if (data) {
+                                document.getElementById('api-port').textContent = data.api_port || 8088;
+                                document.getElementById('api-port-input').value = data.api_port || 8088;
+                                document.getElementById('media-port').textContent = data.media_port || 8089;
+                                document.getElementById('media-port-input').value = data.media_port || 8089;
+                                document.getElementById('db-path').textContent = data.db_path || '/etc/trunplay/trunplay.db';
+                                document.getElementById('db-path-input').value = data.db_path || '/etc/trunplay/trunplay.db';
+                            }
+                        });
+                    },
 
-        this.api('/system/config', 'GET', null, function(data) {
-            if (data) {
-                document.getElementById('api-port').textContent = data.api_port || 8088;
-                document.getElementById('media-port').textContent = data.media_port || 8089;
-                document.getElementById('db-path').textContent = data.db_path || '/etc/trunplay/trunplay.db';
-            }
-        });
-    },
+                    restartService: function () {
+                        if (!confirm('重启服务需要在系统管理页面执行。请前往 系统 - 启动项 页面，找到 trunplay 服务并重启。')) return;
+                        // Open startup page
+                        window.open('/cgi-bin/luci/admin/system/startup', '_blank');
+                    },
 
-    restartService: function() {
-        if (!confirm('确定要重启 TrunPlay 服务吗？')) return;
+                    toggleEditConfig: function () {
+                        var editing = document.querySelector('.config-input').style.display !== 'none';
 
-        // Use XHR to call init script
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', '<%=luci.dispatcher.build_url("admin/system/startup")%>', true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.send('token=' + '<%=token%>' + '&submit=trunplay&action=restart');
+                        if (editing) {
+                            this.cancelEditConfig();
+                        } else {
+                            // Show inputs, hide displays
+                            document.querySelectorAll('.config-display').forEach(function (el) {
+                                el.style.display = 'none';
+                            });
+                            document.querySelectorAll('.config-input').forEach(function (el) {
+                                el.style.display = '';
+                            });
+                            document.getElementById('config-actions').style.display = '';
+                            document.getElementById('edit-config-btn').textContent = '取消';
+                        }
+                    },
 
-        alert('服务正在重启...');
-        setTimeout(function() {
-            trunplay.checkService();
-        }, 3000);
-    },
+                    cancelEditConfig: function () {
+                        // Show displays, hide inputs
+                        document.querySelectorAll('.config-display').forEach(function (el) {
+                            el.style.display = '';
+                        });
+                        document.querySelectorAll('.config-input').forEach(function (el) {
+                            el.style.display = 'none';
+                        });
+                        document.getElementById('config-actions').style.display = 'none';
+                        document.getElementById('edit-config-btn').textContent = '编辑';
+                    },
 
-    init: function() {
-        this.checkService();
-    }
-};
+                    saveConfig: function () {
+                        var data = {
+                            api_port: parseInt(document.getElementById('api-port-input').value),
+                            media_port: parseInt(document.getElementById('media-port-input').value),
+                            db_path: document.getElementById('db-path-input').value
+                        };
 
-document.addEventListener('DOMContentLoaded', function() {
-    trunplay.init();
-});
-//]]>
-</script>
+                        // Note: This requires backend API support
+                        // If API doesn't exist, show message
+                        alert('配置保存功能需要后端 API 支持。请直接编辑 /etc/trunplay/config.json 文件。');
+                        this.cancelEditConfig();
 
-<%+footer%>
+                        // Uncomment when backend API is ready:
+                        // this.api('/system/config', 'PUT', data, function(result) {
+                        //     if (result && result.success) {
+                        //         alert('配置已保存，请重启服务使配置生效');
+                        //         trunplay.cancelEditConfig();
+                        //         trunplay.checkService();
+                        //     } else {
+                        //         alert('保存失败');
+                        //     }
+                        // });
+                    },
+
+                    init: function () {
+                        this.checkService();
+                    }
+                };
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    trunplay.init();
+                });
+                //]]>
+            </script>
+
+            <%+footer%>

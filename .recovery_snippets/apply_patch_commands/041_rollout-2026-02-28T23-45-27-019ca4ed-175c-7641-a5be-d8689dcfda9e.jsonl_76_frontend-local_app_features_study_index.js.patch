@@ -1,0 +1,46 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/study/index.js
+@@
+   async function openFileBrowser() {
+@@
+-    if (browserSmbServerSelect) {
+-      browserSmbServerSelect.innerHTML = '<option value="">选择服务器</option>';
+-      try {
+-        const list = await app.api.get('/smb/servers', { requestKey: 'study:browser-servers' });
+-        browserSmbServerSelect.innerHTML = '<option value="">选择服务器</option>' + (Array.isArray(list) ? list : [])
+-          .map((server) => `<option value="${escapeHtml(server.id)}">${escapeHtml(server.name || server.host || '-')}</option>`)
+-          .join('');
+-      } catch (_) {
+-        // keep default option
+-      }
+-      browserSmbServerSelect.value = '';
+-    }
++    await refreshBrowserServerOptions('');
+@@
+     app.ui.openModal(browserModal, browseBtn);
+   }
++
++  async function refreshBrowserServerOptions(selectedId = '') {
++    if (!browserSmbServerSelect) return;
++    browserSmbServerSelect.innerHTML = '<option value="">选择服务器</option>';
++    try {
++      const list = await app.api.get('/smb/servers', { requestKey: 'study:browser-servers' });
++      const options = Array.isArray(list) ? list : [];
++      browserSmbServerSelect.innerHTML = '<option value="">选择服务器</option>' + options
++        .map((server) => `<option value="${escapeHtml(server.id)}">${escapeHtml(server.name || server.host || '-')}</option>`)
++        .join('');
++      browserSmbServerSelect.value = selectedId || '';
++    } catch (_) {
++      browserSmbServerSelect.value = '';
++    }
++  }
+@@
+   browserSelectAll?.addEventListener('click', () => {
+@@
+   });
++
++  app.bus.on('smb:updated', async () => {
++    if (!browserModal || browserModal.style.display !== 'flex') return;
++    await refreshBrowserServerOptions(browserState.serverId || '');
++  });
+*** End Patch

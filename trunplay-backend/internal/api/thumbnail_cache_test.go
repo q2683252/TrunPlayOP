@@ -1,0 +1,19 @@
+package api
+
+import "testing"
+
+func TestThumbCacheKey_SMBIncludesServerID(t *testing.T) {
+	keyA := thumbCacheKey("smb://server/share/video.mp4", 123, "SMB", "server-a")
+	keyB := thumbCacheKey("smb://server/share/video.mp4", 123, "SMB", "server-b")
+	if keyA == keyB {
+		t.Fatal("SMB cache key must include server_id to avoid cross-server collisions")
+	}
+}
+
+func TestThumbCacheKey_LocalIgnoresServerID(t *testing.T) {
+	keyA := thumbCacheKey("file:///tmp/video.mp4", 456, "LOCAL", "server-a")
+	keyB := thumbCacheKey("file:///tmp/video.mp4", 456, "LOCAL", "server-b")
+	if keyA != keyB {
+		t.Fatal("local cache key should not depend on server_id")
+	}
+}

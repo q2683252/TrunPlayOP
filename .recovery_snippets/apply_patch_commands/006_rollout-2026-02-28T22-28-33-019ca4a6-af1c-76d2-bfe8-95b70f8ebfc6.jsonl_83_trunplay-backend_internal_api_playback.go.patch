@@ -1,0 +1,45 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/playback.go
+@@
+ 	success, err := getPlayback(c).StartPlayback(c.Request.Context(), tx2, plan, "MANUAL", body.StartPosition, body.Duration)
+@@
+ 	if err != nil {
+-		logAPI.Error("playback play StartPlayback", "plan_id", body.PlanID, "err", err)
+-		ServerError(c, err.Error())
++		logAPI.Warn("playback play StartPlayback", "plan_id", body.PlanID, "err", err)
++		if handleStartPlaybackError(c, err) {
++			return
++		}
++		ServerError(c, err.Error())
+ 		return
+ 	}
+@@
+ 	defer tx.Rollback()
+ 	if err := getPlayback(c).StopPlayback(c.Request.Context(), tx); err != nil {
+-		logAPI.Warn("playback stop", "err", err)
++		logAPI.Warn("playback stop", "err", err)
++		ServerError(c, err.Error())
++		return
+ 	}
+ 	if err := tx.Commit(); err != nil {
+ 		ServerError(c, err.Error())
+@@
+ 	if err := c.ShouldBindJSON(&body); err != nil {
+ 		logAPI.Warn("playback volume bad request", "err", err)
+ 		BadRequest(c, err.Error())
+ 		return
+ 	}
+-	if body.Level < 0 || body.Level > 100 {
+-		logAPI.Warn("playback volume out of range", "level", body.Level)
+-		BadRequest(c, "level must be 0-100")
+-		return
++	requestedLevel := body.Level
++	if body.Level < 0 {
++		body.Level = 0
++	} else if body.Level > 100 {
++		body.Level = 100
++	}
++	if requestedLevel != body.Level {
++		logAPI.Warn("playback volume clamped", "requested", requestedLevel, "level", body.Level)
+ 	}
+*** End Patch

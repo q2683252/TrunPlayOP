@@ -1,136 +1,956 @@
-<%#
-TrunPlay - Study Tasks Page
-%>
+<%# TrunPlay - Study Tasks Page %>
 
-<%+header%>
+    <%+header%>
+        <%+trunplay/custom_css%>
+        <%+trunplay/common_js%>
 
-<h2><%:学习任务%></h2>
+            <h2>
+                <%:学习任务%>
+            </h2>
 
-<div class="cbi-section">
-    <div class="cbi-section-node">
-        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddTask()"><%:新建任务%></button>
-        <button class="cbi-button" onclick="trunplay.loadTasks()"><%:刷新%></button>
-    </div>
-</div>
+            <div class="cbi-section">
+                <div class="cbi-section-node">
+                    <button class="cbi-button cbi-button-add" onclick="trunplay.showAddTask()">
+                        <%:新建任务%>
+                    </button>
+                    <button class="cbi-button" onclick="trunplay.loadTasks()">
+                        <%:刷新%>
+                    </button>
+                </div>
+            </div>
 
-<div class="cbi-section">
-    <h3><%:任务列表%></h3>
-    <table class="cbi-section-table" id="tasks-table">
-        <tr class="cbi-section-table-titles">
-            <th><%:名称%></th>
-            <th><%:媒体数量%></th>
-            <th><%:总时长%></th>
-            <th><%:已学习%></th>
-            <th><%:进度%></th>
-            <th><%:操作%></th>
-        </tr>
-        <tr id="tasks-loading">
-            <td colspan="6"><%:加载中...%></td>
-        </tr>
-    </table>
-</div>
+            <div class="cbi-section">
+                <h3>
+                    <%:任务列表%>
+                </h3>
+                <div class="tp-inline-filters">
+                    <input type="text" id="study-filter-keyword" placeholder="搜索任务名" oninput="trunplay.applyTaskFilters()">
+                    <select id="study-filter-progress" onchange="trunplay.applyTaskFilters()">
+                        <option value="all">全部进度</option>
+                        <option value="empty">未开始</option>
+                        <option value="running">学习中</option>
+                        <option value="done">已完成</option>
+                    </select>
+                    <button class="cbi-button" type="button" onclick="trunplay.resetTaskFilters()">清空筛选</button>
+                    <span id="study-filter-meta" class="tp-filter-meta">-</span>
+                </div>
+                <table class="cbi-section-table" id="tasks-table">
+                    <tr class="cbi-section-table-titles">
+                        <th>
+                            <%:名称%>
+                        </th>
+                        <th>
+                            <%:媒体数量%>
+                        </th>
+                        <th>
+                            <%:总时长%>
+                        </th>
+                        <th>
+                            <%:已学习%>
+                        </th>
+                        <th>
+                            <%:进度%>
+                        </th>
+                        <th>
+                            <%:操作%>
+                        </th>
+                    </tr>
+                    <tr id="tasks-loading">
+                        <td colspan="6">
+                            <%:加载中...%>
+                        </td>
+                    </tr>
+                </table>
+            </div>
 
-<script type="text/javascript">
-//<![CDATA[
-var trunplay = {
-    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+            <!-- Task Details Modal -->
+            <div id="details-modal"
+                style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
+                <div class="modal-content" style="max-width:600px;">
+                    <h3 class="modal-header">
+                        <%:任务详情%>
+                    </h3>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:任务名称%>
+                        </label>
+                        <div class="cbi-value-field" id="detail-task-name">-</div>
+                    </div>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:媒体数量%>
+                        </label>
+                        <div class="cbi-value-field" id="detail-media-count">0</div>
+                    </div>
+                    <h4 style="margin-top:1.5rem; margin-bottom:0.75rem;">
+                        <%:媒体列表%>
+                    </h4>
+                    <div id="detail-media-list"
+                        style="max-height:300px; overflow-y:auto; border:1px solid #ddd; border-radius:3px; padding:10px;">
+                        <p style="color:#999;">
+                            <%:无媒体文件%>
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="cbi-button" onclick="trunplay.hideDetailsModal()">
+                            <%:关闭%>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-    api: function(path, method, body, callback) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', this.apiBase, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                var data = null;
-                try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                if (callback) callback(data, xhr.status);
-            }
-        };
-        var params = 'path=' + encodeURIComponent(path);
-        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
-        xhr.send(params);
-    },
+            <!-- Task Edit Modal -->
+            <div id="edit-modal"
+                style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
+                <div class="modal-content" style="max-width:600px;">
+                    <h3 id="edit-modal-title" class="modal-header">
+                        <%:编辑任务%>
+                    </h3>
+                    <input type="hidden" id="edit-task-id">
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:任务名称%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <input type="text" id="edit-task-name" placeholder="请输入任务名称">
+                        </div>
+                    </div>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:媒体文件%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <button class="cbi-button cbi-button-add" onclick="trunplay.showFileBrowser()"
+                                type="button">
+                                <%:浏览文件%>
+                            </button>
+                            <div id="edit-selected-files" style="margin-top:10px;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="cbi-button" onclick="trunplay.hideEditModal()">
+                            <%:取消%>
+                        </button>
+                        <button class="cbi-button cbi-button-save" onclick="trunplay.saveTask()">
+                            <%:保存%>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-    formatDuration: function(ms) {
-        var s = Math.floor(ms / 1000);
-        var h = Math.floor(s / 3600);
-        var m = Math.floor((s % 3600) / 60);
-        if (h > 0) return h + '小时' + m + '分';
-        return m + '分钟';
-    },
+            <!-- File Browser Modal -->
+            <div id="file-browser-modal"
+                style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1001;">
+                <div class="modal-content"
+                    style="max-width:700px; max-height:80vh; overflow:hidden; display:flex; flex-direction:column;">
+                    <h3 class="modal-header">
+                        <%:选择媒体文件%>
+                            <button class="cbi-button" onclick="trunplay.hideFileBrowser()" style="float:right;"
+                                type="button">×</button>
+                    </h3>
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:SMB 服务器%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <select id="file-smb-server" onchange="trunplay.onServerChange()">
+                                <option value="">
+                                    <%:选择服务器%>
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="file-breadcrumb"
+                        style="padding:10px; background:#f5f5f5; border-radius:3px; margin:10px 0;">
+                        <span style="color:#999;">
+                            <%:当前位置:%>
+                        </span>
+                        <span id="file-breadcrumb-path">-</span>
+                    </div>
+                    <div style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:3px;">
+                        <table class="cbi-section-table" id="file-list-table" style="margin:0;">
+                            <thead>
+                                <tr class="cbi-section-table-titles">
+                                    <th style="width:30px;"><input type="checkbox" id="file-select-all"
+                                            onclick="trunplay.toggleSelectAll()"></th>
+                                    <th style="width:30px;"></th>
+                                    <th>
+                                        <%:名称%>
+                                    </th>
+                                    <th style="width:80px;">
+                                        <%:类型%>
+                                    </th>
+                                    <th style="width:100px;">
+                                        <%:大小%>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="file-list-body">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; color:#999;">
+                                        <%:请选择服务器%>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer" style="margin-top:15px;">
+                        <span id="file-selected-count" style="margin-right:auto;">已选择: 0 个文件</span>
+                        <button class="cbi-button" onclick="trunplay.hideFileBrowser()" type="button">
+                            <%:取消%>
+                        </button>
+                        <button class="cbi-button cbi-button-save" onclick="trunplay.confirmFileSelection()"
+                            type="button">
+                            <%:添加选中%>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-    loadTasks: function() {
-        var self = this;
-        this.api('/study/tasks', 'GET', null, function(data) {
-            var table = document.getElementById('tasks-table');
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
-            }
+            <script type="text/javascript">
+                //<![CDATA[
+                var trunplay = {
+                    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+                    tasks: [],
+                    servers: [],
+                    selectedFiles: [],
+                    browseFiles: [],
+                    currentServerId: '',
+                    currentPath: '',
 
-            if (!data || data.length === 0) {
-                var row = table.insertRow(-1);
-                row.innerHTML = '<td colspan="6">暂无学习任务</td>';
-                return;
-            }
+                    api: function (path, method, body, callback) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('POST', this.apiBase, true);
+                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                        xhr.onreadystatechange = function () {
+                            if (xhr.readyState === 4) {
+                                var data = null;
+                                try { data = JSON.parse(xhr.responseText); } catch (e) { }
+                                if (callback) callback(data, xhr.status);
+                            }
+                        };
+                        var params = 'path=' + encodeURIComponent(path);
+                        if (method) params += '&method=' + encodeURIComponent(method);
+                        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+                        xhr.send(params);
+                    },
 
-            data.forEach(function(task) {
-                var mediaCount = task.media_items ? task.media_items.length : 0;
-                var progress = task.total_duration > 0 ?
-                    Math.round(task.watched_duration / task.total_duration * 100) : 0;
+                    formatDuration: function (value) {
+                        var s = this.toDurationSeconds(value);
+                        if (s <= 0) return '0分钟';
+                        var h = Math.floor(s / 3600);
+                        var m = Math.floor((s % 3600) / 60);
+                        if (h > 0) return h + '小时' + m + '分';
+                        return m + '分钟';
+                    },
 
-                var row = table.insertRow(-1);
-                row.innerHTML =
-                    '<td>' + (task.name || '-') + '</td>' +
-                    '<td>' + mediaCount + '</td>' +
-                    '<td>' + self.formatDuration(task.total_duration) + '</td>' +
-                    '<td>' + self.formatDuration(task.watched_duration) + '</td>' +
-                    '<td><progress value="' + progress + '" max="100" style="width:80px;"></progress> ' + progress + '%</td>' +
-                    '<td>' +
-                        '<button class="cbi-button" onclick="trunplay.resetProgress(\'' + task.id + '\')">重置进度</button> ' +
-                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deleteTask(\'' + task.id + '\')">删除</button>' +
-                    '</td>';
-            });
-        });
-    },
+                    getTaskFilters: function () {
+                        var keywordEl = document.getElementById('study-filter-keyword');
+                        var progressEl = document.getElementById('study-filter-progress');
+                        this.taskFilters.keyword = keywordEl ? String(keywordEl.value || '').trim().toLowerCase() : '';
+                        this.taskFilters.progress = progressEl ? progressEl.value : 'all';
+                        return this.taskFilters;
+                    },
 
-    showAddTask: function() {
-        var name = prompt('请输入任务名称:');
-        if (!name) return;
+                    getFilteredTasks: function () {
+                        var filters = this.getTaskFilters();
+                        return this.tasks.filter(function (task) {
+                            var progress = trunplay.getTaskProgressPercent(task);
+                            if (filters.progress === 'empty' && progress !== 0) return false;
+                            if (filters.progress === 'running' && !(progress > 0 && progress < 100)) return false;
+                            if (filters.progress === 'done' && progress < 100) return false;
+                            if (!filters.keyword) return true;
+                            var target = [task.name || '', task.id || ''].join(' ').toLowerCase();
+                            return target.indexOf(filters.keyword) !== -1;
+                        });
+                    },
 
-        this.api('/study/tasks', 'POST', {name: name, media_items: []}, function(result) {
-            if (result && result.id) {
-                trunplay.loadTasks();
-            } else {
-                alert('创建失败');
-            }
-        });
-    },
+                    updateTaskFilterMeta: function (visibleCount, totalCount) {
+                        var meta = document.getElementById('study-filter-meta');
+                        if (!meta) return;
+                        meta.textContent = this.formatTemplate(L.taskFilterSummary, String(visibleCount), String(totalCount));
+                    },
 
-    resetProgress: function(taskId) {
-        if (!confirm('确定要重置学习进度吗？')) return;
+                    renderTaskTable: function () {
+                        var table = document.getElementById('tasks-table');
+                        if (!table) return;
+                        while (table.rows.length > 1) { table.deleteRow(1); }
 
-        this.api('/study/tasks/' + taskId + '/reset', 'POST', {}, function() {
-            trunplay.loadTasks();
-        });
-    },
+                        var filtered = this.getFilteredTasks();
+                        this.updateTaskFilterMeta(filtered.length, this.tasks.length);
 
-    deleteTask: function(taskId) {
-        if (!confirm('确定要删除这个任务吗？')) return;
+                        if (this.tasks.length === 0) {
+                            var emptyRow = table.insertRow(-1);
+                            emptyRow.className = 'trunplay-empty-row';
+                            emptyRow.innerHTML = '<td colspan="7">暂无学习任务。点击「新建任务」从本机或 SMB 选择媒体并跟踪学习进度。</td>';
+                            return;
+                        }
 
-        this.api('/study/tasks/' + taskId, 'DELETE', null, function() {
-            trunplay.loadTasks();
-        });
-    },
+                        if (filtered.length === 0) {
+                            var noMatch = table.insertRow(-1);
+                            noMatch.className = 'trunplay-empty-row';
+                            noMatch.innerHTML = '<td colspan="7">' + this.escapeHtml(L.noTaskMatch) + '</td>';
+                            return;
+                        }
 
-    init: function() {
-        this.loadTasks();
-    }
-};
+                        filtered.forEach(function (task) {
+                            var mediaCount = task.media_items ? task.media_items.length : 0;
+                            var progress = trunplay.getTaskProgressPercent(task);
+                            var previewHtml = '-';
+                            if (mediaCount > 0) {
+                                var firstItem = trunplay.normalizeMediaItem(task.media_items[0]);
+                                previewHtml = '<img class="tp-thumb-sm" src="' + trunplay.buildThumbUrl(firstItem) + '" alt="预览">';
+                            }
 
-document.addEventListener('DOMContentLoaded', function() {
-    trunplay.init();
-});
-//]]>
-</script>
+                            var totalDuration = trunplay.toDurationSeconds(task.total_duration);
+                            var totalDurText = (totalDuration === 0 && mediaCount > 0) ? '<span style="color:#999;">计算中...</span>' : trunplay.formatDuration(task.total_duration);
+                            var safeTaskId = String(task.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                            var row = table.insertRow(-1);
+                            row.innerHTML =
+                                '<td>' + previewHtml + '</td>' +
+                                '<td>' + trunplay.escapeHtml(task.name || '-') + '</td>' +
+                                '<td>' + mediaCount + '</td>' +
+                                '<td>' + totalDurText + '</td>' +
+                                '<td>' + trunplay.formatDuration(task.watched_duration) + '</td>' +
+                                '<td><progress value="' + progress + '" max="100" style="width:80px;"></progress> ' + progress + '%</td>' +
+                                '<td>' +
+                                '<button class="cbi-button" onclick="trunplay.viewTaskDetails(\'' + safeTaskId + '\')">查看</button> ' +
+                                '<button class="cbi-button" onclick="trunplay.editTask(\'' + safeTaskId + '\')">编辑</button> ' +
+                                '<button class="cbi-button" onclick="trunplay.resetProgress(\'' + safeTaskId + '\')">重置进度</button> ' +
+                                '<button class="cbi-button cbi-button-remove" onclick="trunplay.deleteTask(\'' + safeTaskId + '\')">删除</button>' +
+                                '</td>';
+                        });
+                    },
 
-<%+footer%>
+                    applyTaskFilters: function () {
+                        this.renderTaskTable();
+                    },
+
+                    resetTaskFilters: function () {
+                        var keywordEl = document.getElementById('study-filter-keyword');
+                        var progressEl = document.getElementById('study-filter-progress');
+                        if (keywordEl) keywordEl.value = '';
+                        if (progressEl) progressEl.value = 'all';
+                        this.renderTaskTable();
+                    },
+
+                    loadTasks: function () {
+                        var self = this;
+                        var table = document.getElementById('tasks-table');
+                        var refreshBtn = document.getElementById('study-refresh-btn');
+                        if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = '加载中...'; }
+                        while (table.rows.length > 1) { table.deleteRow(1); }
+                        var loadingRow = table.insertRow(-1);
+                        loadingRow.className = 'trunplay-loading-row';
+                        loadingRow.innerHTML = '<td colspan="7">加载中...</td>';
+
+                        this.api('/study/tasks', 'GET', null, function (data) {
+                            if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = '刷新'; }
+                            if (!data) {
+                                while (table.rows.length > 1) { table.deleteRow(1); }
+                                var errRow = table.insertRow(-1);
+                                errRow.className = 'trunplay-empty-row';
+                                errRow.innerHTML = '<td colspan="7">加载失败，请重试</td>';
+                                self.showMessage('error', L.loadFail);
+                                self.updateTaskFilterMeta(0, 0);
+                                return;
+                            }
+                            self.tasks = Array.isArray(data) ? data : [];
+                            self.renderTaskTable();
+                        });
+                    },
+
+                    viewTaskDetails: function (taskId) {
+                        var task = this.tasks.find(function (t) { return t.id === taskId; });
+                        if (!task) {
+                            this.api('/study/tasks/' + taskId, 'GET', null, function (task) {
+                                if (task) trunplay.showTaskDetails(task);
+                            });
+                        } else {
+                            this.showTaskDetails(task);
+                        }
+                    },
+
+                    showTaskDetails: function (task) {
+                        document.getElementById('detail-task-name').textContent = task.name || '-';
+                        document.getElementById('detail-media-count').textContent = task.media_items ? task.media_items.length : 0;
+
+                        var listDiv = document.getElementById('detail-media-list');
+                        if (!task.media_items || task.media_items.length === 0) {
+                            listDiv.innerHTML = '<p style="color:#999;">无媒体文件</p>';
+                        } else {
+                            var html = '<ul style="list-style:none; padding:0; margin:0;">';
+                            task.media_items.forEach(function (item, idx) {
+                                html += '<li style="padding:8px; border-bottom:1px solid #f0f0f0;">';
+                                html += '<strong>' + (idx + 1) + '. </strong>';
+                                html += item.media_name;
+                                html += '</li>';
+                            });
+                            html += '</ul>';
+                            listDiv.innerHTML = html;
+                        }
+
+                        document.getElementById('details-modal').style.display = '';
+                    },
+
+                    hideDetailsModal: function () {
+                        document.getElementById('details-modal').style.display = 'none';
+                    },
+
+                    editTask: function (taskId) {
+                        var task = this.tasks.find(function (t) { return t.id === taskId; });
+                        if (!task) {
+                            var self = this;
+                            this.api('/study/tasks/' + taskId, 'GET', null, function (task) {
+                                if (task) self.showEditTask(task);
+                            });
+                        } else {
+                            this.showEditTask(task);
+                        }
+                    },
+
+                    showEditTask: function (task) {
+                        document.getElementById('edit-modal-title').textContent = '编辑任务';
+                        document.getElementById('edit-task-id').value = task.id;
+                        document.getElementById('edit-task-name').value = task.name || '';
+
+                        // Load existing media
+                        this.selectedFiles = [];
+                        if (task.media_items) {
+                            this.selectedFiles = task.media_items.map(function (item) {
+                                return {
+                                    id: item.id,
+                                    name: item.media_name,
+                                    uri: item.media_uri,
+                                    type: 'VIDEO',
+                                    server_id: item.server_id || '',
+                                    size: 0
+                                };
+                            });
+                        }
+                        this.displaySelectedFiles();
+
+                        document.getElementById('edit-modal').style.display = '';
+                    },
+
+                    showAddTask: function () {
+                        document.getElementById('edit-modal-title').textContent = '新建任务';
+                        document.getElementById('edit-task-id').value = '';
+                        document.getElementById('edit-task-name').value = '';
+                        this.selectedFiles = [];
+                        this.displaySelectedFiles();
+                        document.getElementById('edit-modal').style.display = '';
+                    },
+
+                    hideEditModal: function () {
+                        document.getElementById('edit-modal').style.display = 'none';
+                    },
+
+                    saveTask: function () {
+                        var taskId = document.getElementById('edit-task-id').value;
+                        var name = String(document.getElementById('edit-task-name').value || '').trim();
+
+                        if (!name) {
+                            alert('请输入任务名称');
+                            return;
+                        }
+
+                        var data = {
+                            name: name,
+                            media_items: this.selectedFiles.map(function (file, idx) {
+                                return {
+                                    media_uri: file.uri,
+                                    media_name: file.name,
+                                    duration: 0,
+                                    sort_order: idx,
+                                    source_type: 'SMB',
+                                    server_id: file.server_id
+                                };
+                            })
+                        };
+
+                        var path = taskId ? '/study/tasks/' + taskId : '/study/tasks';
+                        var method = taskId ? 'PUT' : 'POST';
+
+                        this.api(path, method, data, function (result) {
+                            if (result && result.id) {
+                                trunplay.hideEditModal();
+                                trunplay.loadTasks();
+                            } else {
+                                alert('保存失败');
+                            }
+                        });
+                    },
+
+                    displaySelectedFiles: function () {
+                        var container = document.getElementById('edit-selected-files');
+                        if (this.selectedFiles.length === 0) {
+                            container.innerHTML = '<p style="color:#999;">暂无已选文件</p>';
+                            return;
+                        }
+
+                        var html = '<div style="max-height:200px; overflow-y:auto;">';
+                        this.selectedFiles.forEach(function (file, idx) {
+                            html += '<div style="display:flex; align-items:center; padding:5px; border-bottom:1px solid #eee;">';
+                            html += '<span style="flex:1;">' + file.name + '</span>';
+                            html += '<button class="cbi-button cbi-button-remove" onclick="trunplay.removeSelectedFile(' + idx + ')" style="margin:0;">删除</button>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    },
+
+                    removeSelectedFile: function (index) {
+                        this.selectedFiles.splice(index, 1);
+                        this.displaySelectedFiles();
+                    },
+
+                    // File Browser Functions
+                    showFileBrowser: function () {
+                        this.currentPath = '';
+                        this.currentServerId = '';
+                        this.smbPathPrefix = '';
+                        this.setPreviewFile(null);
+                        this.browseFiles = [];
+
+                        try {
+                            var remembered = localStorage.getItem('tp_study_media_source');
+                            this.currentSource = remembered === 'local' ? 'local' : 'smb';
+                        } catch (e) {
+                            this.currentSource = 'smb';
+                        }
+
+                        var searchInput = document.getElementById('study-browser-search');
+                        var typeSelect = document.getElementById('study-browser-type');
+                        var sortSelect = document.getElementById('study-browser-sort');
+                        if (searchInput) searchInput.value = '';
+                        if (typeSelect) typeSelect.value = 'ALL';
+                        if (sortSelect) sortSelect.value = 'name_asc';
+                        if (document.getElementById('file-smb-server')) document.getElementById('file-smb-server').value = '';
+
+                        document.getElementById('file-browser-modal').classList.add('show');
+                        document.getElementById('file-browser-modal').onclick = function (e) { if (e.target.id === 'file-browser-modal') trunplay.hideFileBrowser(); };
+                        this.updateSourceButtons();
+                        document.getElementById('file-smb-server-row').style.display = this.currentSource === 'smb' ? '' : 'none';
+                        this.updateFileBreadcrumb();
+                        this.updateSelectedCount();
+
+                        if (this.currentSource === 'smb') {
+                            this.loadSmbServers();
+                            this.clearFileList();
+                        } else {
+                            this.browsePath('');
+                        }
+                    },
+
+                    setMediaSource: function (source) {
+                        this.currentSource = source;
+                        this.currentPath = '';
+                        this.smbPathPrefix = '';
+                        this.currentServerId = '';
+                        this.setPreviewFile(null);
+                        this.browseFiles = [];
+                        if (document.getElementById('file-smb-server')) document.getElementById('file-smb-server').value = '';
+                        try {
+                            localStorage.setItem('tp_study_media_source', source);
+                        } catch (e) { }
+                        this.updateSourceButtons();
+                        document.getElementById('file-smb-server-row').style.display = source === 'smb' ? '' : 'none';
+                        this.updateFileBreadcrumb();
+                        if (source === 'local') {
+                            this.browsePath('');
+                        } else {
+                            this.loadSmbServers();
+                            this.clearFileList();
+                        }
+                    },
+
+                    updateSourceButtons: function () {
+                        var localBtn = document.getElementById('study-source-local-btn');
+                        var smbBtn = document.getElementById('study-source-smb-btn');
+                        if (localBtn) { localBtn.classList.toggle('cbi-button-positive', this.currentSource === 'local'); localBtn.setAttribute('aria-pressed', this.currentSource === 'local'); }
+                        if (smbBtn) { smbBtn.classList.toggle('cbi-button-positive', this.currentSource === 'smb'); smbBtn.setAttribute('aria-pressed', this.currentSource === 'smb'); }
+                    },
+
+                    hideFileBrowser: function () {
+                        document.getElementById('file-browser-modal').classList.remove('show');
+                        document.getElementById('file-browser-modal').onclick = null;
+                    },
+
+                    loadSmbServers: function () {
+                        var self = this;
+                        this.api('/smb/servers', 'GET', null, function (data) {
+                            self.servers = Array.isArray(data) ? data : [];
+                            var select = document.getElementById('file-smb-server');
+                            if (!select) return;
+                            select.innerHTML = '<option value="">选择服务器</option>';
+                            self.servers.forEach(function (server) {
+                                var option = document.createElement('option');
+                                option.value = server.id;
+                                option.textContent = (server.name || 'SMB') + ' (' + (server.host || '-') + ')';
+                                select.appendChild(option);
+                            });
+                            if (!self.servers.length) {
+                                self.showMessage('warning', L.noSmbServers);
+                            }
+                        });
+                    },
+
+                    onServerChange: function () {
+                        var serverId = document.getElementById('file-smb-server').value;
+                        if (serverId) {
+                            this.currentServerId = serverId;
+                            this.smbPathPrefix = '';
+                            this.currentPath = '';
+                            this.browsePath('');
+                        } else {
+                            this.currentServerId = '';
+                            this.smbPathPrefix = '';
+                            this.clearFileList();
+                            this.updateFileBreadcrumb();
+                        }
+                    },
+
+                    applyBrowserFilters: function () {
+                        var searchInput = document.getElementById('study-browser-search');
+                        var typeSelect = document.getElementById('study-browser-type');
+                        var sortSelect = document.getElementById('study-browser-sort');
+                        this.browserFilters.keyword = searchInput ? String(searchInput.value || '').trim().toLowerCase() : '';
+                        this.browserFilters.type = typeSelect ? typeSelect.value : 'ALL';
+                        this.browserFilters.sort = sortSelect ? sortSelect.value : 'name_asc';
+                        this.renderBrowseFileList();
+                    },
+
+                    getFilteredBrowseFiles: function () {
+                        var filters = this.browserFilters;
+                        var files = (this.browseFiles || []).filter(function (file) {
+                            if (file.type === 'FOLDER') return true;
+                            if (filters.type !== 'ALL' && file.type !== filters.type) return false;
+                            if (!filters.keyword) return true;
+                            return String(file.name || '').toLowerCase().indexOf(filters.keyword) !== -1;
+                        });
+                        files.sort(function (a, b) {
+                            var af = a.type === 'FOLDER' ? 0 : 1;
+                            var bf = b.type === 'FOLDER' ? 0 : 1;
+                            if (af !== bf) return af - bf;
+                            var nameA = String(a.name || '').toLowerCase();
+                            var nameB = String(b.name || '').toLowerCase();
+                            var sizeA = parseInt(a.size || 0, 10);
+                            var sizeB = parseInt(b.size || 0, 10);
+                            switch (filters.sort) {
+                                case 'name_desc':
+                                    return nameB.localeCompare(nameA, 'zh-CN', { numeric: true });
+                                case 'size_desc':
+                                    return sizeB - sizeA || nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+                                case 'size_asc':
+                                    return sizeA - sizeB || nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+                                case 'name_asc':
+                                default:
+                                    return nameA.localeCompare(nameB, 'zh-CN', { numeric: true });
+                            }
+                        });
+                        return files;
+                    },
+
+                    updateBrowserMeta: function (visibleCount, totalCount) {
+                        var el = document.getElementById('study-browser-meta');
+                        if (!el) return;
+                        el.textContent = this.formatTemplate(L.browserFilterSummary, String(visibleCount), String(totalCount));
+                    },
+
+                    refreshCurrentPath: function () {
+                        if (this.currentSource === 'smb' && !this.currentServerId) {
+                            this.showMessage('error', L.pleaseSelectServer);
+                            return;
+                        }
+                        this.browsePath(this.currentPath || '');
+                    },
+
+                    browsePath: function (path) {
+                        var self = this;
+                        if (this.currentSource === 'smb' && !this.currentServerId) return;
+
+                        this.currentPath = path;
+                        this.updateFileBreadcrumb();
+                        this.showFileListLoading();
+
+                        if (this.currentSource === 'local') {
+                            var localApiPath = '/media/local' + (path ? '?path=' + encodeURIComponent(path) : '');
+                            this.api(localApiPath, 'GET', null, function (data) {
+                                if (data && Array.isArray(data.items)) {
+                                    self.browseFiles = data.items;
+                                    self.applyBrowserFilters();
+                                } else {
+                                    self.clearFileList();
+                                    var errMsg = (data && (data.error || data.message)) ? (L.browseFail + ': ' + (data.error || data.message)) : L.browseFail;
+                                    self.showMessage('error', errMsg);
+                                }
+                            });
+                        } else {
+                            var smbApiPath = '/smb/servers/' + this.currentServerId + '/browse?path=' + encodeURIComponent(path);
+                            this.api(smbApiPath, 'GET', null, function (data) {
+                                if (data && Array.isArray(data.items)) {
+                                    self.browseFiles = data.items;
+                                    self.smbPathPrefix = (data && data.path_prefix) ? data.path_prefix : '';
+                                    self.applyBrowserFilters();
+                                } else if (data && data.available_shares && data.available_shares.length) {
+                                    self.smbPathPrefix = '';
+                                    self.renderAvailableShares(data.available_shares, (data && data.message) ? data.message : '');
+                                } else {
+                                    self.clearFileList();
+                                    var errMsg = (data && (data.error || data.message)) ? (L.browseFail + ': ' + (data.error || data.message)) : L.browseFail;
+                                    self.showMessage('error', errMsg);
+                                }
+                            });
+                        }
+                    },
+
+                    renderAvailableShares: function (names, message) {
+                        names = Array.isArray(names) ? names : [];
+                        var tbody = document.getElementById('file-list-body');
+                        if (!tbody) return;
+                        this.updateBrowserMeta(names.length, names.length);
+                        var html = '';
+                        if (message) {
+                            html += '<tr><td colspan="5" style="padding:8px; color:#666;">' + this.escapeHtml(message) + '</td></tr>';
+                        }
+                        html += '<tr><td colspan="5" style="padding:8px; font-weight:bold;">请选择共享（点击以下之一）：</td></tr>';
+                        names.forEach(function (name) {
+                            var safe = ('' + name).replace(/'/g, "\\'").replace(/</g, '&lt;');
+                            html += '<tr><td></td><td>📁</td><td><a href="#" onclick="trunplay.browsePath(\'' + safe + '\'); return false;" style="color:#0066cc;">' + safe + '</a></td><td>共享</td><td>-</td></tr>';
+                        });
+                        tbody.innerHTML = html;
+                    },
+
+                    showFileListLoading: function () {
+                        var tbody = document.getElementById('file-list-body');
+                        if (!tbody) return;
+                        this.updateBrowserMeta(0, 0);
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">' + L.loading + '</td></tr>';
+                    },
+
+                    clearFileList: function () {
+                        var tbody = document.getElementById('file-list-body');
+                        if (!tbody) return;
+                        this.updateBrowserMeta(0, 0);
+                        var msg = (this.currentSource === 'smb' && !this.currentServerId) ? L.pleaseSelectServer : L.loading;
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">' + msg + '</td></tr>';
+                        var all = document.getElementById('file-select-all');
+                        if (all) all.checked = false;
+                    },
+
+                    updateFileBreadcrumb: function () {
+                        var breadcrumb = document.getElementById('file-breadcrumb-path');
+                        if (!breadcrumb) return;
+                        var rootPath = this.smbPathPrefix || '';
+
+                        if (this.currentSource === 'smb' && !this.currentServerId) {
+                            breadcrumb.textContent = '请先选择 SMB 服务器';
+                            return;
+                        }
+
+                        if (!this.currentPath && !rootPath) {
+                            breadcrumb.innerHTML = '<a href="#" onclick="trunplay.browsePath(\'\'); return false;" style="color:#0066cc;">根目录</a>';
+                            return;
+                        }
+
+                        var displayPath = this.currentPath || rootPath;
+                        var parts = displayPath.split('/').filter(function (p) { return p; });
+                        var rootEsc = (rootPath || '').replace(/'/g, "\\'");
+                        var html = '<a href="#" onclick="trunplay.browsePath(\'' + rootEsc + '\'); return false;" style="color:#0066cc;">根目录</a>';
+                        var pathSoFar = '';
+                        parts.forEach(function (part) {
+                            pathSoFar += (pathSoFar ? '/' : '') + part;
+                            var clickEsc = pathSoFar.replace(/'/g, "\\'");
+                            html += ' &gt; <a href="#" onclick="trunplay.browsePath(\'' + clickEsc + '\'); return false;" style="color:#0066cc;">' + trunplay.escapeHtml(part) + '</a>';
+                        });
+                        breadcrumb.innerHTML = html;
+                    },
+
+                    renderBrowseFileList: function () {
+                        var tbody = document.getElementById('file-list-body');
+                        if (!tbody) return;
+                        tbody.innerHTML = '';
+
+                        var allFiles = this.browseFiles || [];
+                        var files = this.getFilteredBrowseFiles();
+                        this.updateBrowserMeta(files.length, allFiles.length);
+
+                        if (!allFiles.length) {
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">' + L.folderEmpty + '</td></tr>';
+                            return;
+                        }
+
+                        if (!files.length) {
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">' + this.escapeHtml(L.noBrowserMatch) + '</td></tr>';
+                            return;
+                        }
+
+                        files.forEach(function (file) {
+                            var row = tbody.insertRow(-1);
+                            var isFolder = file.type === 'FOLDER';
+                            if (!isFolder) {
+                                row.style.cursor = 'pointer';
+                                row.onclick = function (e) {
+                                    if (e && e.target && e.target.tagName === 'INPUT') return;
+                                    trunplay.setPreviewFile(file);
+                                };
+                            }
+
+                            var cell1 = row.insertCell(0);
+                            if (!isFolder) {
+                                var cb = document.createElement('input');
+                                cb.type = 'checkbox';
+                                cb.className = 'file-checkbox';
+                                cb.dataset.fileData = JSON.stringify(file);
+                                cb.onchange = function () { trunplay.updateSelectedCount(); };
+                                cell1.appendChild(cb);
+                            }
+
+                            var cell2 = row.insertCell(1);
+                            var icon = isFolder ? '📁' : (file.type === 'VIDEO' ? '🎬' : file.type === 'AUDIO' ? '🎵' : '🖼️');
+                            cell2.textContent = icon;
+
+                            var cell3 = row.insertCell(2);
+                            if (isFolder) {
+                                var link = document.createElement('a');
+                                link.href = '#';
+                                link.textContent = file.name;
+                                link.style.color = '#0066cc';
+                                link.onclick = function (e) {
+                                    e.preventDefault();
+                                    var nextPath = trunplay.smbPathPrefix ? (trunplay.smbPathPrefix + '/' + file.path) : file.path;
+                                    trunplay.browsePath(nextPath);
+                                    return false;
+                                };
+                                cell3.appendChild(link);
+                            } else {
+                                cell3.textContent = file.name;
+                            }
+
+                            var cell4 = row.insertCell(3);
+                            cell4.textContent = file.type === 'FOLDER' ? '文件夹' : file.type;
+
+                            var cell5 = row.insertCell(4);
+                            cell5.textContent = isFolder ? '-' : trunplay.formatSize(file.size);
+                        });
+
+                        var all = document.getElementById('file-select-all');
+                        if (all) all.checked = false;
+                    },
+
+                    toggleSelectAll: function () {
+                        var selectAll = document.getElementById('file-select-all');
+                        var checked = selectAll ? selectAll.checked : false;
+                        document.querySelectorAll('.file-checkbox').forEach(function (cb) {
+                            cb.checked = checked;
+                        });
+                        this.updateSelectedCount();
+                    },
+
+                    updateSelectedCount: function () {
+                        var checked = document.querySelectorAll('.file-checkbox:checked');
+                        var count = checked.length;
+                        var countEl = document.getElementById('file-selected-count');
+                        if (countEl) countEl.textContent = '已选择: ' + count + ' 个文件';
+                        var all = document.querySelectorAll('.file-checkbox');
+                        var allBox = document.getElementById('file-select-all');
+                        if (allBox) allBox.checked = !!all.length && all.length === checked.length;
+                        if (count > 0) {
+                            try {
+                                var last = checked[checked.length - 1];
+                                var fileData = JSON.parse(last.dataset.fileData || '{}');
+                                this.setPreviewFile(fileData);
+                            } catch (e) {
+                                this.setPreviewFile(null);
+                            }
+                        } else {
+                            this.setPreviewFile(null);
+                        }
+                    },
+
+                    confirmFileSelection: function () {
+                        var checkedBoxes = document.querySelectorAll('.file-checkbox:checked');
+                        if (checkedBoxes.length === 0) {
+                            trunplay.showMessage('error', L.selectOneFile);
+                            return;
+                        }
+
+                        var self = this;
+                        var existsMap = {};
+                        this.selectedFiles.forEach(function (file) {
+                            var key = (file.source_type || '') + '|' + (file.server_id || '') + '|' + (file.uri || '');
+                            existsMap[key] = true;
+                        });
+
+                        checkedBoxes.forEach(function (cb) {
+                            var fileData;
+                            try {
+                                fileData = JSON.parse(cb.dataset.fileData || '{}');
+                            } catch (e) {
+                                return;
+                            }
+                            var uri = fileData.uri || '';
+                            var sourceType = fileData.source_type || (self.currentSource === 'local' ? 'LOCAL' : 'SMB');
+                            var serverId = fileData.server_id != null ? fileData.server_id : (sourceType === 'SMB' ? self.currentServerId : '');
+                            var key = sourceType + '|' + (serverId || '') + '|' + uri;
+                            if (existsMap[key]) return;
+                            existsMap[key] = true;
+                            var obj = {
+                                id: fileData.id,
+                                name: fileData.name,
+                                uri: uri,
+                                type: fileData.type,
+                                source_type: sourceType,
+                                server_id: serverId,
+                                size: fileData.size,
+                                last_modified: fileData.last_modified || 0
+                            };
+                            obj.preview_url = self.buildThumbUrl(obj);
+                            self.selectedFiles.push(obj);
+                        });
+
+                        this.displaySelectedFiles();
+                        this.hideFileBrowser();
+                    },
+
+                    formatSize: function (bytes) {
+                        var num = parseFloat(bytes || 0);
+                        if (!isFinite(num) || num <= 0) return '0 B';
+                        var k = 1024;
+                        var sizes = ['B', 'KB', 'MB', 'GB'];
+                        var i = Math.floor(Math.log(num) / Math.log(k));
+                        return (num / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+                    },
+
+                    resetProgress: function (taskId) {
+                        if (!confirm('确定要重置学习进度吗？')) return;
+
+                        this.api('/study/tasks/' + taskId + '/reset', 'POST', {}, function () {
+                            trunplay.loadTasks();
+                        });
+                    },
+
+                    deleteTask: function (taskId) {
+                        if (!confirm('确定要删除这个任务吗？')) return;
+
+                        this.api('/study/tasks/' + taskId, 'DELETE', null, function () {
+                            trunplay.loadTasks();
+                        });
+                    },
+
+                    init: function () {
+                        this.syncSelectedActions();
+                        this.updateTaskFilterMeta(0, 0);
+                        this.updateBrowserMeta(0, 0);
+                        this.loadTasks();
+                    }
+                };
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    trunplay.init();
+                });
+                //]]>
+            </script>
+
+            <%+footer%>

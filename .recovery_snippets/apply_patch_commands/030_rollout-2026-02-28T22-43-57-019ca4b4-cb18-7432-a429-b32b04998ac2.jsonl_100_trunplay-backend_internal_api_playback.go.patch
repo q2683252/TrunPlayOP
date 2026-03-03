@@ -1,0 +1,24 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/playback.go
+@@
+ 	tx2, err := database.Begin()
+ 	if err != nil {
+ 		logAPI.Error("playback play tx2 begin", "err", err)
+ 		ServerError(c, err.Error())
+ 		return
+ 	}
+ 	defer tx2.Rollback()
+-	success, err := getPlayback(c).StartPlayback(c.Request.Context(), tx2, plan, "MANUAL", body.StartPosition, body.Duration)
++	freshPlan, err := db.GetPlan(tx2, body.PlanID)
++	if err != nil {
++		logAPI.Error("playback play tx2 GetPlan", "plan_id", body.PlanID, "err", err)
++		ServerError(c, err.Error())
++		return
++	}
++	if freshPlan == nil {
++		logAPI.Warn("playback play plan disappeared", "plan_id", body.PlanID)
++		NotFound(c, "Plan not found")
++		return
++	}
++	success, err := getPlayback(c).StartPlayback(c.Request.Context(), tx2, freshPlan, "MANUAL", body.StartPosition, body.Duration)
+*** End Patch

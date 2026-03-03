@@ -1,0 +1,85 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/media.go
+@@
+-		pathAbs, _ := filepath.Abs(path)
+-		allowed := false
+-		for _, r := range allowedRoots {
+-			rAbs, _ := filepath.Abs(r)
+-			rAbs, _ = filepath.EvalSymlinks(rAbs)
+-			if pathAbs == rAbs || strings.HasPrefix(pathAbs, rAbs+string(filepath.Separator)) {
+-				allowed = true
+-				break
+-			}
+-		}
+-		if !allowed {
++		pathAbs := resolvePathForAllowlist(path)
++		if !isPathWithinRoots(pathAbs, allowedRoots) {
+ 			return nil
+ 		}
+@@
+-	path, err := filepath.Abs(path)
+-	if err != nil {
+-		logAPI.Warn("media browse local abs path", "err", err)
+-		BadRequest(c, err.Error())
++	path = resolvePathForAllowlist(path)
++	if path == "" {
++		logAPI.Warn("media browse local abs path", "path", c.DefaultQuery("path", ""))
++		BadRequest(c, "invalid path")
+ 		return
+ 	}
+-	path, err = filepath.EvalSymlinks(path)
+-	if err != nil {
+-		path = filepath.Clean(path)
+-	}
+-	allowed := false
+-	for _, root := range roots {
+-		rootAbs, _ := filepath.Abs(root)
+-		rootAbs, _ = filepath.EvalSymlinks(rootAbs)
+-		if path == rootAbs || strings.HasPrefix(path, rootAbs+string(filepath.Separator)) {
+-			allowed = true
+-			break
+-		}
+-	}
+-	if !allowed {
++	if !isPathWithinRoots(path, roots) {
+ 		logAPI.Warn("media browse local access denied", "path", path)
+ 		Forbidden(c, "Access denied: path outside allowed directories")
+ 		return
+ 	}
+@@
+ 	password, _ := server["password"].(string)
+ 	sharePath, _ := server["share_path"].(string)
+ 	shareName := strings.Trim(strings.TrimSpace(sharePath), "/\\")
++	pathPrefix := ""
++	if shareName == "" {
++		pathParam := strings.Trim(path, "/\\")
++		if pathParam != "" {
++			firstSegment := pathParam
++			if idx := strings.IndexAny(pathParam, "/\\"); idx >= 0 {
++				firstSegment = pathParam[:idx]
++			}
++			shareName = firstSegment
++			pathWithinShare := ""
++			if idx := strings.IndexAny(pathParam, "/\\"); idx >= 0 {
++				pathWithinShare = strings.Trim(pathParam[idx+1:], "/\\")
++			}
++			path = pathWithinShare
++			sharePath = shareName
++			pathPrefix = pathParam
++		}
++	}
+ 	if shareName == "" {
+ 		shares, listErr := getSmb(c).ListShares(c.Request.Context(), host, port, username, password)
+ 		msg := "share_path must be a valid share name (e.g. share or Videos), not \"/\" or empty"
+@@
+ 	if parentPath == "" {
+ 		parent = nil
+ 	}
+-	c.JSON(http.StatusOK, gin.H{"path": path, "parent_path": parent, "items": list})
++	out := gin.H{"path": path, "parent_path": parent, "items": list}
++	if pathPrefix != "" {
++		out["path_prefix"] = pathPrefix
++	}
++	c.JSON(http.StatusOK, out)
+ }
+*** End Patch

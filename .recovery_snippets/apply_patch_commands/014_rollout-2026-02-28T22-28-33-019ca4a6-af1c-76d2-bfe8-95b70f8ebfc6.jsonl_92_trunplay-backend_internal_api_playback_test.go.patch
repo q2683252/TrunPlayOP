@@ -1,0 +1,73 @@
+*** Begin Patch
+*** Update File: trunplay-backend/internal/api/playback_test.go
+@@
+ 	plan := parseJSON(t, raw)
+ 	planID, _ := plan["id"].(string)
+ 	code, _ = postJSON(t, router, "/api/v1/playback/play", map[string]interface{}{"plan_id": planID})
+-	// No device_id on plan -> StartPlayback returns false -> 500
+-	if code != 500 {
+-		t.Errorf("expected 500 when plan has no device, got %d", code)
++	if code != 400 {
++		t.Errorf("expected 400 when plan has no device, got %d", code)
+ 	}
+ }
+@@
+-	// 未绑定设备时播放应返回 500，且 message 为「请先为计划选择投屏设备」
++	// 未绑定设备时播放应返回 400，且 message 为「请先为计划选择投屏设备」
+ 	code, body := postJSON(t, router, "/api/v1/playback/play", map[string]interface{}{"plan_id": planID})
+-	if code != 500 {
+-		t.Errorf("expected 500 when plan has no device, got %d body=%s", code, body)
++	if code != 400 {
++		t.Errorf("expected 400 when plan has no device, got %d body=%s", code, body)
+ 	}
+ 	m := parseJSON(t, body)
+-	if msg, ok := m["message"].(string); ok && msg != "请先为计划选择投屏设备" {
+-		t.Errorf("expected message 请先为计划选择投屏设备, got %q", msg)
++	if msg, ok := m["message"].(string); ok && msg != "请先为计划选择投屏设备" {
++		t.Errorf("expected message 请先为计划选择投屏设备, got %q", msg)
+ 	}
+ }
+@@
+-	code, body := postJSON(t, router, "/api/v1/playback/play", map[string]interface{}{"plan_id": planID})
+-	if code != 500 {
+-		t.Errorf("expected 500 (device offline in test env), got %d body=%s", code, body)
++	code, body := postJSON(t, router, "/api/v1/playback/play", map[string]interface{}{"plan_id": planID})
++	if code != 503 {
++		t.Errorf("expected 503 (device offline in test env), got %d body=%s", code, body)
+ 	}
+ 	m := parseJSON(t, body)
+ 	msg, _ := m["message"].(string)
+ 	if msg == "请先为计划选择投屏设备" {
+ 		t.Errorf("device_id should be persisted: got 请先为计划选择投屏设备 (device_id not saved)")
+ 	}
+-	if msg != "" && msg != "投屏设备离线或不可用" {
+-		// 允许其他 DLNA 相关错误
++	if msg != "" && msg != "投屏设备离线或不可用" && len(msg) < len("投屏设备不可用:") {
+ 		t.Logf("playback message: %s", msg)
+ 	}
+ }
+@@
+ 	code, _ = postJSON(t, router, "/api/v1/playback/volume", map[string]interface{}{"level": 50})
+ 	if code != 200 {
+ 		t.Errorf("POST volume: code=%d", code)
+ 	}
++	code, body = postJSON(t, router, "/api/v1/playback/volume", map[string]interface{}{"level": 150})
++	if code != 200 {
++		t.Fatalf("POST volume clamp high: code=%d body=%s", code, body)
++	}
++	m = parseJSON(t, body)
++	if v, ok := m["level"].(float64); !ok || v != 100 {
++		t.Fatalf("volume clamp high: got %v", m["level"])
++	}
++	code, body = postJSON(t, router, "/api/v1/playback/volume", map[string]interface{}{"level": -1})
++	if code != 200 {
++		t.Fatalf("POST volume clamp low: code=%d body=%s", code, body)
++	}
++	m = parseJSON(t, body)
++	if v, ok := m["level"].(float64); !ok || v != 0 {
++		t.Fatalf("volume clamp low: got %v", m["level"])
++	}
+ 	code, body = get(t, router, "/api/v1/playback/volume")
+ 	if code != 200 {
+ 		t.Fatalf("GET volume after set: code=%d", code)
+*** End Patch

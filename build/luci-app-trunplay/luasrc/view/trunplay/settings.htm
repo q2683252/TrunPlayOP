@@ -1,0 +1,129 @@
+<%#
+TrunPlay - Settings Page
+%>
+
+<%+header%>
+
+<h2><%:设置%></h2>
+
+<div class="cbi-section">
+    <h3><%:服务状态%></h3>
+    <div class="cbi-section-node">
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:后端服务%></label>
+            <div class="cbi-value-field">
+                <span id="service-status"><%:检查中...%></span>
+                <button class="cbi-button" onclick="trunplay.restartService()"><%:重启服务%></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:服务配置%></h3>
+    <div class="cbi-section-node">
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:API 端口%></label>
+            <div class="cbi-value-field">
+                <span id="api-port">8088</span>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:媒体端口%></label>
+            <div class="cbi-value-field">
+                <span id="media-port">8089</span>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:数据库路径%></label>
+            <div class="cbi-value-field">
+                <span id="db-path">/etc/trunplay/trunplay.db</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:关于%></h3>
+    <div class="cbi-section-node">
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:版本%></label>
+            <div class="cbi-value-field">
+                <span>1.0.0</span>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:说明%></label>
+            <div class="cbi-value-field">
+                <span>TrunPlay 定时投屏 - OpenWrt 版本</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', this.apiBase, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    checkService: function() {
+        this.api('/system/status', 'GET', null, function(data) {
+            if (data && data.version) {
+                document.getElementById('service-status').innerHTML = '<span style="color:green;">运行中</span>';
+            } else {
+                document.getElementById('service-status').innerHTML = '<span style="color:red;">未运行</span>';
+            }
+        });
+
+        this.api('/system/config', 'GET', null, function(data) {
+            if (data) {
+                document.getElementById('api-port').textContent = data.api_port || 8088;
+                document.getElementById('media-port').textContent = data.media_port || 8089;
+                document.getElementById('db-path').textContent = data.db_path || '/etc/trunplay/trunplay.db';
+            }
+        });
+    },
+
+    restartService: function() {
+        if (!confirm('确定要重启 TrunPlay 服务吗？')) return;
+
+        // Use XHR to call init script
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '<%=luci.dispatcher.build_url("admin/system/startup")%>', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.send('token=' + '<%=token%>' + '&submit=trunplay&action=restart');
+
+        alert('服务正在重启...');
+        setTimeout(function() {
+            trunplay.checkService();
+        }, 3000);
+    },
+
+    init: function() {
+        this.checkService();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>

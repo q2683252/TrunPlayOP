@@ -1,0 +1,13 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/plans/index.js
+@@
+   function applyDraft(draft = {}) {
+     if (planTitleInput) planTitleInput.value = draft.title || '';
+     if (planStartInput) planStartInput.value = draft.start_time || '09:00';
+     if (planEndInput) planEndInput.value = draft.end_time || '17:00';
++    if (planDeviceSelect && draft.device_id !== undefined) planDeviceSelect.value = draft.device_id || '';
+     if (planModeSelect) planModeSelect.value = draft.play_mode || 'SEQUENTIAL';
+     if (planActiveInput) planActiveInput.checked = draft.is_active !== false;
+     applyRepeatDays(draft.repeat_days || '');
+   }
+*** End Patch

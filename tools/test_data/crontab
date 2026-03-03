@@ -1,0 +1,2 @@
+# TrunPlay crontab
+0 8 * * 1,2,3,4,5 /usr/bin/trunplay-trigger ef4bea33-242e-402c-a742-17dbd148354c # TrunPlay: ef4bea33-242e-402c-a742-17dbd148354c

@@ -1,0 +1,353 @@
+<style>
+    :root {
+        --tp-primary: #2563eb;
+        --tp-primary-hover: #1d4ed8;
+        --tp-bg: #f8fafc;
+        --tp-surface: #ffffff;
+        --tp-border: #e2e8f0;
+        --tp-text: #1e293b;
+        --tp-text-light: #64748b;
+        --tp-success: #10b981;
+        --tp-warning: #f59e0b;
+        --tp-danger: #ef4444;
+        --tp-radius: 8px;
+        --tp-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    }
+
+    /* Global Overrides for TrunPlay pages */
+    h2 {
+        color: var(--tp-text) !important;
+        font-weight: 600 !important;
+        margin-bottom: 1.5rem !important;
+        border-bottom: none !important;
+        font-size: 1.5rem !important;
+    }
+
+    .cbi-section {
+        background: var(--tp-surface);
+        border-radius: var(--tp-radius);
+        box-shadow: var(--tp-shadow);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid var(--tp-border);
+    }
+
+    .cbi-section>h3 {
+        color: var(--tp-text) !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        margin-top: 0 !important;
+        margin-bottom: 1.25rem !important;
+        border-bottom: 1px solid var(--tp-border) !important;
+        padding-bottom: 0.75rem !important;
+    }
+
+    .cbi-value {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+    }
+
+    .cbi-value:last-child {
+        border-bottom: none;
+    }
+
+    .cbi-value-title {
+        color: var(--tp-text-light);
+        font-weight: 500;
+        width: 30% !important;
+        float: none !important;
+        margin-right: 1rem;
+    }
+
+    .cbi-value-field {
+        color: var(--tp-text);
+        flex: 1;
+    }
+
+    /* Buttons */
+    /* Buttons */
+    .cbi-button {
+        display: inline-block !important;
+        width: auto !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        height: 2.25rem !important;
+        line-height: 2.25rem !important;
+        padding: 0 1rem !important;
+        margin: 0 0.5rem 0 0 !important;
+        background-color: var(--tp-surface);
+        border: 1px solid var(--tp-border);
+        color: var(--tp-text);
+        border-radius: 6px !important;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-weight: 500 !important;
+        font-size: 0.875rem !important;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        vertical-align: middle !important;
+        box-sizing: border-box !important;
+        text-align: center !important;
+        text-decoration: none !important;
+        white-space: nowrap !important;
+        flex: none !important;
+    }
+
+    .cbi-button:last-child {
+        margin-right: 0 !important;
+    }
+
+    .cbi-button:hover {
+        background-color: #f8fafc;
+        border-color: #cbd5e1;
+        transform: translateY(-1px);
+    }
+
+    .cbi-button-action,
+    .cbi-button-save,
+    .cbi-button-add {
+        background-color: var(--tp-primary) !important;
+        border-color: var(--tp-primary) !important;
+        color: white !important;
+        background-image: none !important;
+    }
+
+    .cbi-button-action:hover,
+    .cbi-button-save:hover,
+    .cbi-button-add:hover {
+        background-color: var(--tp-primary-hover) !important;
+        border-color: var(--tp-primary-hover) !important;
+        box-shadow: 0 4px 6px -1px rgb(37 99 235 / 0.2);
+    }
+
+    .cbi-button-remove,
+    .cbi-button-reset {
+        background-color: white !important;
+        border-color: var(--tp-border) !important;
+        color: var(--tp-danger) !important;
+        background-image: none !important;
+    }
+
+    .cbi-button-remove:hover {
+        background-color: #fef2f2 !important;
+        border-color: var(--tp-danger) !important;
+    }
+
+    /* Modal/Dialog Specific */
+    .modal-content {
+        background: var(--tp-surface);
+        width: 100%;
+        max-width: 500px;
+        padding: 1.5rem;
+        border-radius: var(--tp-radius);
+        box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .modal-header {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid var(--tp-border);
+        padding-bottom: 1rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--tp-text);
+    }
+
+    .modal-footer {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--tp-border);
+        text-align: right;
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    .modal-footer .cbi-button {
+        min-width: 80px;
+        margin: 0 !important;
+    }
+
+    /* Inputs */
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select,
+    input[type="time"] {
+        border: 1px solid var(--tp-border);
+        border-radius: 6px;
+        padding: 0.4rem 0.6rem;
+        font-size: 0.875rem;
+        width: 100%;
+        box-sizing: border-box;
+        transition: border-color 0.2s;
+        height: 2.25rem;
+        line-height: 1.5;
+    }
+
+    input[type="text"]:focus,
+    select:focus {
+        border-color: var(--tp-primary);
+        outline: none;
+        box-shadow: 0 0 0 2px rgb(37 99 235 / 0.1);
+    }
+
+    /* Tables */
+    .cbi-section-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 0.5rem;
+    }
+
+    .cbi-section-table th {
+        background-color: #f8fafc;
+        color: var(--tp-text-light);
+        font-weight: 600;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--tp-border);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .cbi-section-table td {
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid var(--tp-border);
+        color: var(--tp-text);
+        vertical-align: middle;
+    }
+
+    .cbi-section-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .status-badge.online,
+    .status-badge.active,
+    .status-badge.playing {
+        background-color: #dcfce7;
+        color: #166534;
+    }
+
+    .status-badge.offline,
+    .status-badge.inactive,
+    .status-badge.stopped {
+        background-color: #f1f5f9;
+        color: #64748b;
+    }
+
+    .status-badge.error {
+        background-color: #fee2e2;
+        color: #991b1b;
+    }
+
+    .status-badge.paused {
+        background-color: #fef3c7;
+        color: #92400e;
+    }
+
+    /* Dashboard specific */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-card {
+        background: var(--tp-surface);
+        padding: 1.5rem;
+        border-radius: var(--tp-radius);
+        box-shadow: var(--tp-shadow);
+        border: 1px solid var(--tp-border);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        transition: transform 0.2s;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    }
+
+    .dashboard-card .label {
+        color: var(--tp-text-light);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .dashboard-card .value {
+        color: var(--tp-text);
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .dashboard-card .sub-value {
+        color: var(--tp-text-light);
+        font-size: 0.875rem;
+    }
+
+    /* Progress Bar */
+    .progress-container {
+        width: 100%;
+        background-color: #f1f5f9;
+        border-radius: 9999px;
+        height: 0.75rem;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background-color: var(--tp-primary);
+        transition: width 0.3s ease;
+    }
+
+    /* Range Slider */
+    input[type=range] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        background: transparent;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        height: 16px;
+        width: 16px;
+        border-radius: 50%;
+        background: var(--tp-primary);
+        cursor: pointer;
+        margin-top: -6px;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 4px;
+        cursor: pointer;
+        background: #e2e8f0;
+        border-radius: 2px;
+    }
+</style>

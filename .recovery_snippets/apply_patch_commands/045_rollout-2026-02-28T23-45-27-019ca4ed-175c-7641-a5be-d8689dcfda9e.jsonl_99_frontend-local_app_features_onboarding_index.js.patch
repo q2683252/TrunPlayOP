@@ -1,0 +1,9 @@
+*** Begin Patch
+*** Update File: frontend-local/app/features/onboarding/index.js
+@@
+-    if (state.ui.onboardingDismissed && allDone) {
++    if (state.ui.onboardingDismissed) {
+       panel.style.display = 'none';
+       return;
+     }
+*** End Patch

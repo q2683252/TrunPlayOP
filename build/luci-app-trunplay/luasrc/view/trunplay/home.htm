@@ -1,0 +1,227 @@
+<%#
+TrunPlay - Home/Status Page
+Displays current playback status and quick controls
+%>
+
+<%+header%>
+
+<h2><%:TrunPlay 定时投屏%></h2>
+
+<div class="cbi-section">
+    <h3><%:当前状态%></h3>
+    <div class="cbi-section-node">
+        <div id="playback-status" class="cbi-value">
+            <label class="cbi-value-title"><%:播放状态%></label>
+            <div class="cbi-value-field">
+                <span id="status-text"><%:加载中...%></span>
+            </div>
+        </div>
+        <div id="current-device" class="cbi-value" style="display:none;">
+            <label class="cbi-value-title"><%:当前设备%></label>
+            <div class="cbi-value-field">
+                <span id="device-name">-</span>
+            </div>
+        </div>
+        <div id="current-media" class="cbi-value" style="display:none;">
+            <label class="cbi-value-title"><%:正在播放%></label>
+            <div class="cbi-value-field">
+                <span id="media-name">-</span>
+            </div>
+        </div>
+        <div id="playback-progress" class="cbi-value" style="display:none;">
+            <label class="cbi-value-title"><%:播放进度%></label>
+            <div class="cbi-value-field">
+                <span id="progress-text">00:00 / 00:00</span>
+                <div style="margin-top:5px;">
+                    <progress id="progress-bar" value="0" max="100" style="width:200px;"></progress>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cbi-section" id="controls-section" style="display:none;">
+    <h3><%:播放控制%></h3>
+    <div class="cbi-section-node">
+        <div class="cbi-value">
+            <div class="cbi-value-field">
+                <button class="cbi-button cbi-button-action" onclick="trunplay.pause()"><%:暂停%></button>
+                <button class="cbi-button cbi-button-action" onclick="trunplay.resume()"><%:继续%></button>
+                <button class="cbi-button cbi-button-remove" onclick="trunplay.stop()"><%:停止%></button>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:音量%></label>
+            <div class="cbi-value-field">
+                <input type="range" id="volume-slider" min="0" max="100" value="50" style="width:150px;" onchange="trunplay.setVolume(this.value)">
+                <span id="volume-value">50</span>%
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:系统信息%></h3>
+    <div class="cbi-section-node">
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:服务状态%></label>
+            <div class="cbi-value-field">
+                <span id="service-status"><%:检查中...%></span>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:本机 IP%></label>
+            <div class="cbi-value-field">
+                <span id="local-ip">-</span>
+            </div>
+        </div>
+        <div class="cbi-value">
+            <label class="cbi-value-title"><%:数据库大小%></label>
+            <div class="cbi-value-field">
+                <span id="db-size">-</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        var url = this.apiBase + '?path=' + encodeURIComponent(path);
+        if (method) url += '&method=' + method;
+        xhr.open('POST', url, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    formatTime: function(seconds) {
+        var h = Math.floor(seconds / 3600);
+        var m = Math.floor((seconds % 3600) / 60);
+        var s = seconds % 60;
+        if (h > 0) {
+            return h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        }
+        return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    },
+
+    formatSize: function(bytes) {
+        var units = ['B', 'KB', 'MB', 'GB'];
+        var i = 0;
+        while (bytes >= 1024 && i < units.length - 1) {
+            bytes /= 1024;
+            i++;
+        }
+        return bytes.toFixed(1) + ' ' + units[i];
+    },
+
+    updateStatus: function() {
+        var self = this;
+
+        // Get playback status
+        this.api('/playback/status', 'GET', null, function(data) {
+            if (!data) {
+                document.getElementById('status-text').textContent = '后端服务未响应';
+                document.getElementById('service-status').textContent = '离线';
+                return;
+            }
+
+            document.getElementById('service-status').textContent = '运行中';
+
+            var status = data.status || 'STOPPED';
+            var statusText = {
+                'STOPPED': '已停止',
+                'LOADING': '加载中',
+                'PLAYING': '播放中',
+                'PAUSED': '已暂停',
+                'ERROR': '错误'
+            };
+
+            document.getElementById('status-text').textContent = statusText[status] || status;
+
+            if (status === 'PLAYING' || status === 'PAUSED') {
+                document.getElementById('controls-section').style.display = '';
+                document.getElementById('current-device').style.display = '';
+                document.getElementById('current-media').style.display = '';
+                document.getElementById('playback-progress').style.display = '';
+
+                document.getElementById('device-name').textContent = data.device_name || '-';
+                document.getElementById('media-name').textContent = data.media_name || '-';
+
+                var pos = data.position || 0;
+                var dur = data.duration || 0;
+                document.getElementById('progress-text').textContent =
+                    self.formatTime(pos) + ' / ' + self.formatTime(dur);
+
+                var pct = dur > 0 ? (pos / dur * 100) : 0;
+                document.getElementById('progress-bar').value = pct;
+
+                document.getElementById('volume-slider').value = data.volume || 50;
+                document.getElementById('volume-value').textContent = data.volume || 50;
+            } else {
+                document.getElementById('controls-section').style.display = 'none';
+                document.getElementById('current-device').style.display = 'none';
+                document.getElementById('current-media').style.display = 'none';
+                document.getElementById('playback-progress').style.display = 'none';
+            }
+        });
+
+        // Get system status
+        this.api('/system/status', 'GET', null, function(data) {
+            if (data) {
+                document.getElementById('local-ip').textContent = data.local_ip || '-';
+                document.getElementById('db-size').textContent = self.formatSize(data.db_size || 0);
+            }
+        });
+    },
+
+    pause: function() {
+        this.api('/playback/pause', 'POST', {}, function() {
+            trunplay.updateStatus();
+        });
+    },
+
+    resume: function() {
+        this.api('/playback/resume', 'POST', {}, function() {
+            trunplay.updateStatus();
+        });
+    },
+
+    stop: function() {
+        if (confirm('确定要停止播放吗？')) {
+            this.api('/playback/stop', 'POST', {}, function() {
+                trunplay.updateStatus();
+            });
+        }
+    },
+
+    setVolume: function(level) {
+        document.getElementById('volume-value').textContent = level;
+        this.api('/playback/volume', 'POST', {level: parseInt(level)}, function() {});
+    },
+
+    init: function() {
+        this.updateStatus();
+        setInterval(function() { trunplay.updateStatus(); }, 5000);
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>

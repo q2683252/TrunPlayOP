@@ -1,0 +1,56 @@
+*** Begin Patch
+*** Add File: trunplay-backend/internal/api/path_allowlist.go
++package api
++
++import (
++	"path/filepath"
++	"strings"
++)
++
++// resolvePathForAllowlist returns an absolute, cleaned path.
++// If symlink resolution fails (e.g. path does not exist), it falls back to the
++// absolute path instead of an empty value.
++func resolvePathForAllowlist(path string) string {
++	trimmed := strings.TrimSpace(path)
++	if trimmed == "" {
++		return ""
++	}
++	abs, err := filepath.Abs(trimmed)
++	if err != nil {
++		return filepath.Clean(trimmed)
++	}
++	resolved, err := filepath.EvalSymlinks(abs)
++	if err == nil && resolved != "" {
++		return filepath.Clean(resolved)
++	}
++	return filepath.Clean(abs)
++}
++
++func isPathWithinRoot(path, root string) bool {
++	if path == root {
++		return true
++	}
++	if root == string(filepath.Separator) {
++		return strings.HasPrefix(path, root)
++	}
++	return strings.HasPrefix(path, root+string(filepath.Separator))
++}
++
++func isPathWithinRoots(path string, roots []string) bool {
++	resolvedPath := resolvePathForAllowlist(path)
++	if resolvedPath == "" {
++		return false
++	}
++	for _, root := range roots {
++		resolvedRoot := resolvePathForAllowlist(root)
++		if resolvedRoot == "" {
++			continue
++		}
++		if isPathWithinRoot(resolvedPath, resolvedRoot) {
++			return true
++		}
++	}
++	return false
++}
++
+*** End Patch

@@ -6,19 +6,17 @@ import os
 import re
 import subprocess
 import logging
+import fcntl
 from typing import Optional, List, Tuple
 from datetime import datetime, time as dt_time
 from dataclasses import dataclass
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
 
-# Cron file path - use environment variable for development
-CRONTAB_FILE = os.environ.get("TRUNPLAY_CRONTAB_FILE", "/etc/crontabs/root")
-CRON_TAG = "# TrunPlay:"
-TRIGGER_SCRIPT = "/usr/bin/trunplay-trigger"
-API_BASE_URL = "http://127.0.0.1:8088"
-
+# Cron file path - use config instead of hardcoded value
+from ..config import get_config
 
 @dataclass
 class ScheduleInfo:
@@ -44,16 +42,38 @@ class Scheduler:
     ]
 
     def __init__(self):
+        self._config = get_config()
+        self._crontab_file = self._config.crontab_file
+        self._trigger_script = self._config.trigger_script
         self._ensure_crontab_exists()
+
+    @contextmanager
+    def _lock_crontab(self):
+        """Context manager for exclusive crontab file lock."""
+        lock_file = f"{self._crontab_file}.lock"
+        lock_fd = None
+        try:
+            # Create lock file if it doesn't exist
+            lock_fd = os.open(lock_file, os.O_CREAT | os.O_RDWR)
+            # Acquire exclusive lock
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+            logger.debug("Acquired crontab lock")
+            yield
+        finally:
+            if lock_fd is not None:
+                # Release lock
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
+                os.close(lock_fd)
+                logger.debug("Released crontab lock")
 
     def _ensure_crontab_exists(self):
         """Ensure crontab file exists."""
-        cron_dir = os.path.dirname(CRONTAB_FILE)
+        cron_dir = os.path.dirname(self._crontab_file)
         if not os.path.exists(cron_dir):
             os.makedirs(cron_dir, exist_ok=True)
 
-        if not os.path.exists(CRONTAB_FILE):
-            with open(CRONTAB_FILE, "w") as f:
+        if not os.path.exists(self._crontab_file):
+            with open(self._crontab_file, "w") as f:
                 f.write("# TrunPlay crontab\n")
 
     def schedule_plan(
@@ -94,97 +114,105 @@ class Scheduler:
 
             # Build cron line
             # Format: cron_expr command # TrunPlay: plan_id
-            cron_line = f"{cron_expr} {TRIGGER_SCRIPT} {plan_id} {CRON_TAG} {plan_id}\n"
+            cron_tag = "# TrunPlay:"
+            cron_line = f"{cron_expr} {self._trigger_script} {plan_id} {cron_tag} {plan_id}\n"
 
-            # Remove existing entry for this plan
-            self._remove_plan_cron(plan_id)
+            # Use file lock for safe crontab modification
+            with self._lock_crontab():
+                # Remove existing entry for this plan
+                self._remove_plan_cron_unlocked(plan_id)
 
-            # Add new entry
-            with open(CRONTAB_FILE, "a") as f:
-                f.write(cron_line)
+                # Add new entry
+                with open(self._crontab_file, "a") as f:
+                    f.write(cron_line)
 
-            # Reload cron
-            self._reload_cron()
+                # Reload cron
+                self._reload_cron()
 
             logger.info(f"Scheduled plan {plan_id}: {cron_expr}")
             return True
 
         except Exception as e:
-            logger.error(f"Error scheduling plan {plan_id}: {e}")
+            logger.error(f"Error scheduling plan {plan_id}: {e}", exc_info=True)
             return False
 
     def cancel_plan(self, plan_id: str) -> bool:
         """Remove cron job for a plan."""
         try:
-            removed = self._remove_plan_cron(plan_id)
-            if removed:
-                self._reload_cron()
-                logger.info(f"Cancelled schedule for plan {plan_id}")
+            with self._lock_crontab():
+                removed = self._remove_plan_cron_unlocked(plan_id)
+                if removed:
+                    self._reload_cron()
+                    logger.info(f"Cancelled schedule for plan {plan_id}")
             return removed
         except Exception as e:
-            logger.error(f"Error cancelling plan {plan_id}: {e}")
+            logger.error(f"Error cancelling plan {plan_id}: {e}", exc_info=True)
             return False
 
     def cancel_all(self) -> int:
         """Remove all TrunPlay cron jobs."""
         try:
-            if not os.path.exists(CRONTAB_FILE):
+            if not os.path.exists(self._crontab_file):
                 return 0
 
-            with open(CRONTAB_FILE, "r") as f:
-                lines = f.readlines()
+            with self._lock_crontab():
+                with open(self._crontab_file, "r") as f:
+                    lines = f.readlines()
 
-            removed_count = 0
-            new_lines = []
-            for line in lines:
-                if CRON_TAG not in line:
-                    new_lines.append(line)
-                else:
-                    removed_count += 1
+                removed_count = 0
+                new_lines = []
+                cron_tag = "# TrunPlay:"
+                for line in lines:
+                    if cron_tag not in line:
+                        new_lines.append(line)
+                    else:
+                        removed_count += 1
 
-            with open(CRONTAB_FILE, "w") as f:
-                f.writelines(new_lines)
+                with open(self._crontab_file, "w") as f:
+                    f.writelines(new_lines)
 
-            if removed_count > 0:
-                self._reload_cron()
+                if removed_count > 0:
+                    self._reload_cron()
 
             logger.info(f"Cancelled all TrunPlay schedules: {removed_count} removed")
             return removed_count
 
         except Exception as e:
-            logger.error(f"Error cancelling all schedules: {e}")
+            logger.error(f"Error cancelling all schedules: {e}", exc_info=True)
             return 0
 
     def get_scheduled_plans(self) -> List[str]:
         """Get list of scheduled plan IDs."""
         try:
-            if not os.path.exists(CRONTAB_FILE):
+            if not os.path.exists(self._crontab_file):
                 return []
 
             plan_ids = []
-            with open(CRONTAB_FILE, "r") as f:
+            cron_tag = "# TrunPlay:"
+            with open(self._crontab_file, "r") as f:
                 for line in f:
-                    if CRON_TAG in line:
+                    if cron_tag in line:
                         # Extract plan_id from comment
-                        match = re.search(rf"{CRON_TAG}\s+(\S+)", line)
+                        match = re.search(rf"{cron_tag}\s+(\S+)", line)
                         if match:
                             plan_ids.append(match.group(1))
 
             return plan_ids
 
         except Exception as e:
-            logger.error(f"Error getting scheduled plans: {e}")
+            logger.error(f"Error getting scheduled plans: {e}", exc_info=True)
             return []
 
     def get_next_run(self, plan_id: str) -> Optional[datetime]:
         """Calculate next run time for a plan from crontab."""
         try:
-            if not os.path.exists(CRONTAB_FILE):
+            if not os.path.exists(self._crontab_file):
                 return None
 
-            with open(CRONTAB_FILE, "r") as f:
+            cron_tag = "# TrunPlay:"
+            with open(self._crontab_file, "r") as f:
                 for line in f:
-                    if f"{CRON_TAG} {plan_id}" in line:
+                    if f"{cron_tag} {plan_id}" in line:
                         # Parse cron expression
                         parts = line.strip().split()
                         if len(parts) >= 5:
@@ -196,7 +224,7 @@ class Scheduler:
             return None
 
         except Exception as e:
-            logger.error(f"Error getting next run for {plan_id}: {e}")
+            logger.error(f"Error getting next run for {plan_id}: {e}", exc_info=True)
             return None
 
     def is_holiday(self, date: datetime = None) -> bool:
@@ -277,24 +305,28 @@ class Scheduler:
             logger.error(f"Error calculating next run: {e}")
             return None
 
-    def _remove_plan_cron(self, plan_id: str) -> bool:
-        """Remove cron entry for a specific plan."""
-        if not os.path.exists(CRONTAB_FILE):
+    def _remove_plan_cron_unlocked(self, plan_id: str) -> bool:
+        """
+        Remove cron entry for a specific plan.
+        IMPORTANT: This method assumes the caller has already acquired the crontab lock.
+        """
+        if not os.path.exists(self._crontab_file):
             return False
 
-        with open(CRONTAB_FILE, "r") as f:
+        with open(self._crontab_file, "r") as f:
             lines = f.readlines()
 
         new_lines = []
         removed = False
+        cron_tag = "# TrunPlay:"
         for line in lines:
-            if f"{CRON_TAG} {plan_id}" in line:
+            if f"{cron_tag} {plan_id}" in line:
                 removed = True
             else:
                 new_lines.append(line)
 
         if removed:
-            with open(CRONTAB_FILE, "w") as f:
+            with open(self._crontab_file, "w") as f:
                 f.writelines(new_lines)
 
         return removed

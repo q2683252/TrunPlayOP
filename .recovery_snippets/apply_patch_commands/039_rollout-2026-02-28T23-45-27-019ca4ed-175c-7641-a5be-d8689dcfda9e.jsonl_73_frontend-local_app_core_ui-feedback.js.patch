@@ -1,0 +1,8 @@
+*** Begin Patch
+*** Update File: frontend-local/app/core/ui-feedback.js
+@@
+-  function openModal(id, triggerElement = null) {
+-    const modal = byId(id);
++  function openModal(idOrEl, triggerElement = null) {
++    const modal = typeof idOrEl === 'string' ? byId(idOrEl) : idOrEl;
+*** End Patch

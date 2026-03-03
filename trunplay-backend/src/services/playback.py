@@ -329,77 +329,88 @@ class PlaybackService:
         self._stop_progress_tracking()
 
         async def track_progress():
-            while True:
-                await asyncio.sleep(PROGRESS_SAVE_INTERVAL)
+            try:
+                while True:
+                    await asyncio.sleep(PROGRESS_SAVE_INTERVAL)
 
-                try:
-                    # Check playback state
-                    state = self._dlna_manager.playback_state
-                    if state not in (PlaybackState.PLAYING, PlaybackState.PAUSED):
-                        logger.debug(f"Progress tracking stopped: state={state}")
-                        break
+                    try:
+                        # Check playback state
+                        state = self._dlna_manager.playback_state
+                        if state not in (PlaybackState.PLAYING, PlaybackState.PAUSED):
+                            logger.debug(f"Progress tracking stopped: state={state}")
+                            break
 
-                    # Get position from device
-                    pos_info = await self._dlna_manager.get_position_info()
-                    if not pos_info:
-                        continue
+                        # Get position from device
+                        pos_info = await self._dlna_manager.get_position_info()
+                        if not pos_info:
+                            continue
 
-                    position = pos_info.position
-                    duration = pos_info.duration
+                        position = pos_info.position
+                        duration = pos_info.duration
 
-                    # Save progress to database
-                    if self._db_session_factory:
-                        db = self._db_session_factory()
-                        try:
-                            crud.update_plan_playback_progress(
-                                db=db,
-                                plan_id=plan_id,
-                                position=position,
-                                duration=duration * 1000  # Convert to ms
-                            )
-
-                            # Update history
-                            if self._current_history_id:
-                                played_duration = int(time.time() * 1000) - self._playback_start_time
-                                crud.update_playback_history_progress(
-                                    db=db,
-                                    history_id=self._current_history_id,
-                                    played_duration=played_duration,
-                                    played_position=position
-                                )
-                        finally:
-                            db.close()
-
-                    # Check for completion
-                    if duration > 0 and position >= duration - COMPLETION_THRESHOLD:
-                        logger.info(f"Playback complete: {position}/{duration}")
+                        # Save progress to database
                         if self._db_session_factory:
                             db = self._db_session_factory()
                             try:
-                                crud.reset_plan_progress(db, plan_id)
+                                crud.update_plan_playback_progress(
+                                    db=db,
+                                    plan_id=plan_id,
+                                    position=position,
+                                    duration=duration * 1000  # Convert to ms
+                                )
+
+                                # Update history
                                 if self._current_history_id:
-                                    crud.end_playback_history(
+                                    played_duration = int(time.time() * 1000) - self._playback_start_time
+                                    crud.update_playback_history_progress(
                                         db=db,
                                         history_id=self._current_history_id,
-                                        played_duration=int(time.time() * 1000) - self._playback_start_time,
-                                        played_position=position,
-                                        completed=True
+                                        played_duration=played_duration,
+                                        played_position=position
                                     )
                             finally:
                                 db.close()
-                        break
 
-                except Exception as e:
-                    logger.error(f"Progress tracking error: {e}")
+                        # Check for completion
+                        if duration > 0 and position >= duration - COMPLETION_THRESHOLD:
+                            logger.info(f"Playback complete: {position}/{duration}")
+                            if self._db_session_factory:
+                                db = self._db_session_factory()
+                                try:
+                                    crud.reset_plan_progress(db, plan_id)
+                                    if self._current_history_id:
+                                        crud.end_playback_history(
+                                            db=db,
+                                            history_id=self._current_history_id,
+                                            played_duration=int(time.time() * 1000) - self._playback_start_time,
+                                            played_position=position,
+                                            completed=True
+                                        )
+                                finally:
+                                    db.close()
+                            break
+
+                    except Exception as e:
+                        logger.error(f"Progress tracking error: {e}", exc_info=True)
+
+            except asyncio.CancelledError:
+                logger.debug("Progress tracking task cancelled")
+                raise
+            except Exception as e:
+                logger.error(f"Unexpected error in progress tracking: {e}", exc_info=True)
+            finally:
+                logger.debug(f"Progress tracking ended for plan {plan_id}")
 
         self._progress_task = asyncio.create_task(track_progress())
         logger.debug(f"Progress tracking started for plan {plan_id}")
 
     def _stop_progress_tracking(self):
-        """Stop progress tracking task."""
-        if self._progress_task:
+        """Stop progress tracking task safely."""
+        if self._progress_task and not self._progress_task.done():
+            logger.debug("Cancelling progress tracking task")
             self._progress_task.cancel()
-            self._progress_task = None
+            # Note: The task will handle CancelledError and cleanup in its finally block
+        self._progress_task = None
 
     def _extract_filename(self, url: str) -> str:
         """Extract filename from URL."""

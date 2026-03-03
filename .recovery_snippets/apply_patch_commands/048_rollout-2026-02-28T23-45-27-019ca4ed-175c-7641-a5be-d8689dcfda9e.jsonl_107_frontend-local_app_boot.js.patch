@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: frontend-local/app/boot.js
+@@
+     await Promise.all([
+       app.features.smb.loadSmb({ silent: true }),
+       app.features.devices.loadDevices({ silent: true }),
+       app.features.study.loadStudyTasks({ silent: true }),
++      app.features.history.loadHistory({ silent: true }),
+     ]);
+*** End Patch

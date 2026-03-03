@@ -1,0 +1,29 @@
+round: random monkey continuation (session trunplay-random2)
+
+safe random loop (320 steps)
+- final url: #status
+- click failures: 11/320
+- failures with pointer interception: 11/11
+
+scan race loop (40 cycles)
+- scan devices: ok 6, fail 14
+- scan smb: ok 8, fail 12
+
+nested modal loop (8 cycles)
+- source switch SMB 网络共享 failed: 8/8 (intercepts pointer events)
+- child cancel failed: 8/8 (intercepts pointer events)
+- force select smb server: 8/8
+
+network snapshot: .playwright-cli/network-2026-03-01T01-47-58-951Z.log
+- FAILED: 1030
+- 200: 544
+- 400: 8
+- failed reasons: ERR_ABORTED 706, ERR_CONNECTION_REFUSED 320, ERR_CONNECTION_TIMED_OUT 4
+- 400 endpoint: GET /api/v1/smb/servers/c5ec4936-55b7-4c42-8bb2-074e77c076f1/browse?path=
+
+console evidence: .playwright-cli/console-2026-03-01T01-40-10-713Z.log
+- repeated browse?path= 400 around lines 723-738
+- connection refused waves around lines 315-392 and 659-706
+
+backend health check after test
+- curl /api/v1/system/status => 200 (service recovered)

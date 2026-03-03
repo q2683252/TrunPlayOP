@@ -51,16 +51,27 @@ def browse_local(path: str = Query(default="")):
                 ))
         return schemas.MediaBrowseResponse(path="/", items=items)
 
-    # Security: prevent path traversal
-    path = os.path.abspath(path)
+    # Security: prevent path traversal with realpath resolution
+    # Resolve symlinks and normalize path
+    try:
+        path = os.path.realpath(os.path.abspath(path))
+    except (OSError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=f"Invalid path: {e}")
+
+    # Check if resolved path is within allowed directories
     allowed = False
     for root in DEFAULT_MEDIA_PATHS:
-        if path.startswith(os.path.abspath(root)):
-            allowed = True
-            break
+        try:
+            root_real = os.path.realpath(os.path.abspath(root))
+            # Use commonpath to check if path is under root
+            if os.path.commonpath([path, root_real]) == root_real:
+                allowed = True
+                break
+        except (OSError, ValueError):
+            continue
 
     if not allowed:
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(status_code=403, detail="Access denied: path outside allowed directories")
 
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Path not found")

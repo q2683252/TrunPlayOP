@@ -1,0 +1,136 @@
+<%#
+TrunPlay - Study Tasks Page
+%>
+
+<%+header%>
+
+<h2><%:学习任务%></h2>
+
+<div class="cbi-section">
+    <div class="cbi-section-node">
+        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddTask()"><%:新建任务%></button>
+        <button class="cbi-button" onclick="trunplay.loadTasks()"><%:刷新%></button>
+    </div>
+</div>
+
+<div class="cbi-section">
+    <h3><%:任务列表%></h3>
+    <table class="cbi-section-table" id="tasks-table">
+        <tr class="cbi-section-table-titles">
+            <th><%:名称%></th>
+            <th><%:媒体数量%></th>
+            <th><%:总时长%></th>
+            <th><%:已学习%></th>
+            <th><%:进度%></th>
+            <th><%:操作%></th>
+        </tr>
+        <tr id="tasks-loading">
+            <td colspan="6"><%:加载中...%></td>
+        </tr>
+    </table>
+</div>
+
+<script type="text/javascript">
+//<![CDATA[
+var trunplay = {
+    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+
+    api: function(path, method, body, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', this.apiBase, true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                var data = null;
+                try { data = JSON.parse(xhr.responseText); } catch(e) {}
+                if (callback) callback(data, xhr.status);
+            }
+        };
+        var params = 'path=' + encodeURIComponent(path);
+        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+        xhr.send(params);
+    },
+
+    formatDuration: function(ms) {
+        var s = Math.floor(ms / 1000);
+        var h = Math.floor(s / 3600);
+        var m = Math.floor((s % 3600) / 60);
+        if (h > 0) return h + '小时' + m + '分';
+        return m + '分钟';
+    },
+
+    loadTasks: function() {
+        var self = this;
+        this.api('/study/tasks', 'GET', null, function(data) {
+            var table = document.getElementById('tasks-table');
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+
+            if (!data || data.length === 0) {
+                var row = table.insertRow(-1);
+                row.innerHTML = '<td colspan="6">暂无学习任务</td>';
+                return;
+            }
+
+            data.forEach(function(task) {
+                var mediaCount = task.media_items ? task.media_items.length : 0;
+                var progress = task.total_duration > 0 ?
+                    Math.round(task.watched_duration / task.total_duration * 100) : 0;
+
+                var row = table.insertRow(-1);
+                row.innerHTML =
+                    '<td>' + (task.name || '-') + '</td>' +
+                    '<td>' + mediaCount + '</td>' +
+                    '<td>' + self.formatDuration(task.total_duration) + '</td>' +
+                    '<td>' + self.formatDuration(task.watched_duration) + '</td>' +
+                    '<td><progress value="' + progress + '" max="100" style="width:80px;"></progress> ' + progress + '%</td>' +
+                    '<td>' +
+                        '<button class="cbi-button" onclick="trunplay.resetProgress(\'' + task.id + '\')">重置进度</button> ' +
+                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deleteTask(\'' + task.id + '\')">删除</button>' +
+                    '</td>';
+            });
+        });
+    },
+
+    showAddTask: function() {
+        var name = prompt('请输入任务名称:');
+        if (!name) return;
+
+        this.api('/study/tasks', 'POST', {name: name, media_items: []}, function(result) {
+            if (result && result.id) {
+                trunplay.loadTasks();
+            } else {
+                alert('创建失败');
+            }
+        });
+    },
+
+    resetProgress: function(taskId) {
+        if (!confirm('确定要重置学习进度吗？')) return;
+
+        this.api('/study/tasks/' + taskId + '/reset', 'POST', {}, function() {
+            trunplay.loadTasks();
+        });
+    },
+
+    deleteTask: function(taskId) {
+        if (!confirm('确定要删除这个任务吗？')) return;
+
+        this.api('/study/tasks/' + taskId, 'DELETE', null, function() {
+            trunplay.loadTasks();
+        });
+    },
+
+    init: function() {
+        this.loadTasks();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    trunplay.init();
+});
+//]]>
+</script>
+
+<%+footer%>

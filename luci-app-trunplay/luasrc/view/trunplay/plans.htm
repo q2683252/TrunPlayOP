@@ -1,299 +1,716 @@
-<%#
-TrunPlay - Plans Management Page
-%>
+<%# TrunPlay - Plans Management Page %>
 
-<%+header%>
+    <%+header%>
+        <%+trunplay/custom_css%>
 
-<h2><%:播放计划管理%></h2>
+            <h2>
+                <%:播放计划管理%>
+            </h2>
 
-<div class="cbi-section">
-    <div class="cbi-section-node">
-        <button class="cbi-button cbi-button-add" onclick="trunplay.showAddPlan()"><%:新建计划%></button>
-        <button class="cbi-button cbi-button-action" onclick="trunplay.loadPlans()"><%:刷新%></button>
-    </div>
-</div>
-
-<div class="cbi-section">
-    <h3><%:计划列表%></h3>
-    <table class="cbi-section-table" id="plans-table">
-        <tr class="cbi-section-table-titles">
-            <th><%:标题%></th>
-            <th><%:开始时间%></th>
-            <th><%:重复日期%></th>
-            <th><%:状态%></th>
-            <th><%:操作%></th>
-        </tr>
-        <tr id="plans-loading">
-            <td colspan="5"><%:加载中...%></td>
-        </tr>
-    </table>
-</div>
-
-<!-- Add/Edit Plan Modal -->
-<div id="plan-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
-    <div style="background:#fff; max-width:500px; margin:50px auto; padding:20px; border-radius:5px;">
-        <h3 id="modal-title"><%:新建计划%></h3>
-        <input type="hidden" id="plan-id">
-
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:标题%></label>
-            <div class="cbi-value-field">
-                <input type="text" id="plan-title" style="width:100%;">
+            <div class="cbi-section">
+                <div class="cbi-section-node" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button class="cbi-button cbi-button-add" onclick="trunplay.showAddPlan()">
+                        <%:新建计划%>
+                    </button>
+                    <button class="cbi-button cbi-button-action" onclick="trunplay.loadPlans()">
+                        <%:刷新%>
+                    </button>
+                </div>
             </div>
-        </div>
 
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:开始时间%></label>
-            <div class="cbi-value-field">
-                <input type="time" id="plan-start-time" value="09:00">
+            <div class="cbi-section">
+                <h3>
+                    <%:计划列表%>
+                </h3>
+                <table class="cbi-section-table" id="plans-table">
+                    <tr class="cbi-section-table-titles">
+                        <th>
+                            <%:标题%>
+                        </th>
+                        <th>
+                            <%:开始时间%>
+                        </th>
+                        <th>
+                            <%:重复日期%>
+                        </th>
+                        <th>
+                            <%:状态%>
+                        </th>
+                        <th>
+                            <%:操作%>
+                        </th>
+                    </tr>
+                    <tr id="plans-loading">
+                        <td colspan="5">
+                            <%:加载中...%>
+                        </td>
+                    </tr>
+                </table>
             </div>
-        </div>
 
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:结束时间%></label>
-            <div class="cbi-value-field">
-                <input type="time" id="plan-end-time" value="17:00">
+            <!-- Add/Edit Plan Modal -->
+            <div id="plan-modal"
+                style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; display:flex; align-items:center; justify-content:center;">
+                <div class="modal-content">
+                    <h3 id="modal-title" class="modal-header">
+                        <%:新建计划%>
+                    </h3>
+                    <input type="hidden" id="plan-id">
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:标题%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <input type="text" id="plan-title">
+                        </div>
+                    </div>
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:开始时间%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <input type="time" id="plan-start-time" value="09:00">
+                        </div>
+                    </div>
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:结束时间%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <input type="time" id="plan-end-time" value="17:00">
+                        </div>
+                    </div>
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:重复日期%>
+                        </label>
+                        <div class="cbi-value-field" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+                            <label><input type="checkbox" class="day-check" value="1"> 周一</label>
+                            <label><input type="checkbox" class="day-check" value="2"> 周二</label>
+                            <label><input type="checkbox" class="day-check" value="3"> 周三</label>
+                            <label><input type="checkbox" class="day-check" value="4"> 周四</label>
+                            <label><input type="checkbox" class="day-check" value="5"> 周五</label>
+                            <label><input type="checkbox" class="day-check" value="6"> 周六</label>
+                            <label><input type="checkbox" class="day-check" value="7"> 周日</label>
+                        </div>
+                    </div>
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:设备%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <select id="plan-device">
+                                <option value="">
+                                    <%:选择设备%>
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:媒体文件%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <input type="hidden" id="plan-study-task-id">
+                            <button class="cbi-button cbi-button-add" onclick="trunplay.showSmbBrowser()" type="button">
+                                <%:浏览文件%>
+                            </button>
+                            <div id="selected-files-container" style="margin-top:10px;">
+                                <div id="selected-files-list"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:播放模式%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <select id="plan-play-mode">
+                                <option value="SEQUENTIAL">顺序播放</option>
+                                <option value="RANDOM">随机播放</option>
+                                <option value="LOOP">列表循环</option>
+                                <option value="SINGLE_LOOP">单曲循环</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="cbi-button" onclick="trunplay.hideModal()">
+                            <%:取消%>
+                        </button>
+                        <button class="cbi-button cbi-button-save" onclick="trunplay.savePlan()">
+                            <%:保存%>
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:重复日期%></label>
-            <div class="cbi-value-field">
-                <label><input type="checkbox" class="day-check" value="1"> 周一</label>
-                <label><input type="checkbox" class="day-check" value="2"> 周二</label>
-                <label><input type="checkbox" class="day-check" value="3"> 周三</label>
-                <label><input type="checkbox" class="day-check" value="4"> 周四</label>
-                <label><input type="checkbox" class="day-check" value="5"> 周五</label>
-                <label><input type="checkbox" class="day-check" value="6"> 周六</label>
-                <label><input type="checkbox" class="day-check" value="7"> 周日</label>
+            <!-- SMB File Browser Modal -->
+            <div id="smb-browser-modal"
+                style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1001;">
+                <div class="modal-content"
+                    style="max-width:700px; max-height:80vh; overflow:hidden; display:flex; flex-direction:column;">
+                    <h3 class="modal-header">
+                        <%:选择媒体文件%>
+                            <button class="cbi-button" onclick="trunplay.hideSmbBrowser()" style="float:right;"
+                                type="button">×</button>
+                    </h3>
+
+                    <!-- Server Selector -->
+                    <div class="cbi-value">
+                        <label class="cbi-value-title">
+                            <%:SMB 服务器%>
+                        </label>
+                        <div class="cbi-value-field">
+                            <select id="smb-server-select" onchange="trunplay.onServerChange()">
+                                <option value="">
+                                    <%:选择服务器%>
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Breadcrumb Navigation -->
+                    <div id="smb-breadcrumb"
+                        style="padding:10px; background:#f5f5f5; border-radius:3px; margin:10px 0;">
+                        <span style="color:#999;">
+                            <%:当前位置:%>
+                        </span>
+                        <span id="breadcrumb-path">-</span>
+                    </div>
+
+                    <!-- File List Container -->
+                    <div style="flex:1; overflow-y:auto; border:1px solid #ddd; border-radius:3px;">
+                        <table class="cbi-section-table" id="smb-file-list" style="margin:0;">
+                            <thead>
+                                <tr class="cbi-section-table-titles">
+                                    <th style="width:30px;"><input type="checkbox" id="select-all-files"
+                                            onclick="trunplay.toggleSelectAll()"></th>
+                                    <th style="width:30px;"></th>
+                                    <th>
+                                        <%:名称%>
+                                    </th>
+                                    <th style="width:80px;">
+                                        <%:类型%>
+                                    </th>
+                                    <th style="width:100px;">
+                                        <%:大小%>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="smb-file-list-body">
+                                <tr>
+                                    <td colspan="5" style="text-align:center; color:#999;">
+                                        <%:请选择服务器%>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Footer -->
+                    <div class="modal-footer" style="margin-top:15px;">
+                        <span id="selected-count" style="margin-right:auto;">已选择: 0 个文件</span>
+                        <button class="cbi-button" onclick="trunplay.hideSmbBrowser()" type="button">
+                            <%:取消%>
+                        </button>
+                        <button class="cbi-button cbi-button-save" onclick="trunplay.addSelectedFiles()" type="button">
+                            <%:添加选中%>
+                        </button>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:设备%></label>
-            <div class="cbi-value-field">
-                <select id="plan-device" style="width:100%;">
-                    <option value=""><%:选择设备%></option>
-                </select>
-            </div>
-        </div>
+            <script type="text/javascript">
+                //<![CDATA[
+                var trunplay = {
+                    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
+                    plans: [],
+                    devices: [],
 
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:媒体 URL%></label>
-            <div class="cbi-value-field">
-                <input type="text" id="plan-media-url" style="width:100%;" placeholder="smb://server/share/video.mp4">
-            </div>
-        </div>
+                    api: function (path, method, body, callback) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('POST', this.apiBase, true);
+                        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+                        xhr.onreadystatechange = function () {
+                            if (xhr.readyState === 4) {
+                                var data = null;
+                                try { data = JSON.parse(xhr.responseText); } catch (e) { }
+                                if (callback) callback(data, xhr.status);
+                            }
+                        };
+                        var params = 'path=' + encodeURIComponent(path);
+                        if (method) params += '&method=' + encodeURIComponent(method);
+                        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
+                        xhr.send(params);
+                    },
 
-        <div class="cbi-value">
-            <label class="cbi-value-title"><%:播放模式%></label>
-            <div class="cbi-value-field">
-                <select id="plan-play-mode">
-                    <option value="SEQUENTIAL">顺序播放</option>
-                    <option value="RANDOM">随机播放</option>
-                    <option value="LOOP">列表循环</option>
-                    <option value="SINGLE_LOOP">单曲循环</option>
-                </select>
-            </div>
-        </div>
+                    dayNames: ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'],
 
-        <div style="margin-top:20px; text-align:right;">
-            <button class="cbi-button" onclick="trunplay.hideModal()"><%:取消%></button>
-            <button class="cbi-button cbi-button-save" onclick="trunplay.savePlan()"><%:保存%></button>
-        </div>
-    </div>
-</div>
+                    formatDays: function (days) {
+                        if (!days) return '-';
+                        return days.split(',').map(function (d) {
+                            return trunplay.dayNames[parseInt(d)] || d;
+                        }).join(', ');
+                    },
 
-<script type="text/javascript">
-//<![CDATA[
-var trunplay = {
-    apiBase: '<%=luci.dispatcher.build_url("admin/services/trunplay/api")%>',
-    plans: [],
-    devices: [],
+                    loadPlans: function () {
+                        var self = this;
+                        this.api('/plans', 'GET', null, function (data) {
+                            var table = document.getElementById('plans-table');
+                            // Remove all rows except header
+                            while (table.rows.length > 1) {
+                                table.deleteRow(1);
+                            }
 
-    api: function(path, method, body, callback) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', this.apiBase, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4) {
-                var data = null;
-                try { data = JSON.parse(xhr.responseText); } catch(e) {}
-                if (callback) callback(data, xhr.status);
-            }
-        };
-        var params = 'path=' + encodeURIComponent(path);
-        if (body) params += '&body=' + encodeURIComponent(JSON.stringify(body));
-        xhr.send(params);
-    },
+                            if (!data || data.length === 0) {
+                                var row = table.insertRow(-1);
+                                row.innerHTML = '<td colspan="5">暂无计划</td>';
+                                return;
+                            }
 
-    dayNames: ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+                            self.plans = data;
+                            data.forEach(function (plan) {
+                                var row = table.insertRow(-1);
+                                row.innerHTML =
+                                    '<td>' + (plan.title || '-') + '</td>' +
+                                    '<td>' + (plan.start_time || '-') + '</td>' +
+                                    '<td>' + self.formatDays(plan.repeat_days) + '</td>' +
+                                    '<td>' + (plan.is_active ? '<span class="status-badge active">启用</span>' : '<span class="status-badge inactive">停用</span>') + '</td>' +
+                                    '<td>' +
+                                    '<button class="cbi-button cbi-button-action" onclick="trunplay.playNow(\'' + plan.id + '\')">播放</button> ' +
+                                    '<button class="cbi-button" onclick="trunplay.editPlan(\'' + plan.id + '\')">编辑</button> ' +
+                                    '<button class="cbi-button" onclick="trunplay.togglePlan(\'' + plan.id + '\', ' + plan.is_active + ')">' + (plan.is_active ? '停用' : '启用') + '</button> ' +
+                                    '<button class="cbi-button cbi-button-remove" onclick="trunplay.deletePlan(\'' + plan.id + '\')">删除</button>' +
+                                    '</td>';
+                            });
+                        });
+                    },
 
-    formatDays: function(days) {
-        if (!days) return '-';
-        return days.split(',').map(function(d) {
-            return trunplay.dayNames[parseInt(d)] || d;
-        }).join(', ');
-    },
+                    loadDevices: function () {
+                        var self = this;
+                        this.api('/devices', 'GET', null, function (data) {
+                            self.devices = data || [];
+                            var select = document.getElementById('plan-device');
+                            select.innerHTML = '<option value="">选择设备</option>';
+                            self.devices.forEach(function (d) {
+                                select.innerHTML += '<option value="' + d.id + '">' + d.name + ' (' + d.address + ')</option>';
+                            });
+                        });
+                    },
 
-    loadPlans: function() {
-        var self = this;
-        this.api('/plans', 'GET', null, function(data) {
-            var table = document.getElementById('plans-table');
-            // Remove all rows except header
-            while (table.rows.length > 1) {
-                table.deleteRow(1);
-            }
+                    showAddPlan: function () {
+                        document.getElementById('modal-title').textContent = '新建计划';
+                        document.getElementById('plan-id').value = '';
+                        document.getElementById('plan-title').value = '';
+                        document.getElementById('plan-start-time').value = '09:00';
+                        document.getElementById('plan-end-time').value = '17:00';
+                        document.getElementById('plan-device').value = '';
+                        document.getElementById('plan-study-task-id').value = '';
+                        document.getElementById('plan-play-mode').value = 'SEQUENTIAL';
 
-            if (!data || data.length === 0) {
-                var row = table.insertRow(-1);
-                row.innerHTML = '<td colspan="5">暂无计划</td>';
-                return;
-            }
+                        // Clear selected files
+                        this.selectedFiles = [];
+                        this.displaySelectedFiles();
 
-            self.plans = data;
-            data.forEach(function(plan) {
-                var row = table.insertRow(-1);
-                row.innerHTML =
-                    '<td>' + (plan.title || '-') + '</td>' +
-                    '<td>' + (plan.start_time || '-') + '</td>' +
-                    '<td>' + self.formatDays(plan.repeat_days) + '</td>' +
-                    '<td>' + (plan.is_active ? '<span style="color:green;">启用</span>' : '<span style="color:gray;">停用</span>') + '</td>' +
-                    '<td>' +
-                        '<button class="cbi-button cbi-button-action" onclick="trunplay.playNow(\'' + plan.id + '\')">播放</button> ' +
-                        '<button class="cbi-button" onclick="trunplay.editPlan(\'' + plan.id + '\')">编辑</button> ' +
-                        '<button class="cbi-button" onclick="trunplay.togglePlan(\'' + plan.id + '\', ' + plan.is_active + ')">' + (plan.is_active ? '停用' : '启用') + '</button> ' +
-                        '<button class="cbi-button cbi-button-remove" onclick="trunplay.deletePlan(\'' + plan.id + '\')">删除</button>' +
-                    '</td>';
-            });
-        });
-    },
+                        document.querySelectorAll('.day-check').forEach(function (cb) {
+                            cb.checked = false;
+                        });
 
-    loadDevices: function() {
-        var self = this;
-        this.api('/devices', 'GET', null, function(data) {
-            self.devices = data || [];
-            var select = document.getElementById('plan-device');
-            select.innerHTML = '<option value="">选择设备</option>';
-            self.devices.forEach(function(d) {
-                select.innerHTML += '<option value="' + d.id + '">' + d.name + ' (' + d.address + ')</option>';
-            });
-        });
-    },
+                        this.loadDevices();
+                        document.getElementById('plan-modal').style.display = '';
+                    },
 
-    showAddPlan: function() {
-        document.getElementById('modal-title').textContent = '新建计划';
-        document.getElementById('plan-id').value = '';
-        document.getElementById('plan-title').value = '';
-        document.getElementById('plan-start-time').value = '09:00';
-        document.getElementById('plan-end-time').value = '17:00';
-        document.getElementById('plan-device').value = '';
-        document.getElementById('plan-media-url').value = '';
-        document.getElementById('plan-play-mode').value = 'SEQUENTIAL';
+                    editPlan: function (planId) {
+                        var self = this;
+                        var plan = this.plans.find(function (p) { return p.id === planId; });
+                        if (!plan) return;
 
-        document.querySelectorAll('.day-check').forEach(function(cb) {
-            cb.checked = false;
-        });
+                        document.getElementById('modal-title').textContent = '编辑计划';
+                        document.getElementById('plan-id').value = plan.id;
+                        document.getElementById('plan-title').value = plan.title || '';
+                        document.getElementById('plan-start-time').value = plan.start_time || '09:00';
+                        document.getElementById('plan-end-time').value = plan.end_time || '17:00';
+                        document.getElementById('plan-device').value = plan.device_id || '';
+                        document.getElementById('plan-play-mode').value = plan.play_mode || 'SEQUENTIAL';
 
-        this.loadDevices();
-        document.getElementById('plan-modal').style.display = '';
-    },
+                        var days = (plan.repeat_days || '').split(',');
+                        document.querySelectorAll('.day-check').forEach(function (cb) {
+                            cb.checked = days.indexOf(cb.value) !== -1;
+                        });
 
-    editPlan: function(planId) {
-        var plan = this.plans.find(function(p) { return p.id === planId; });
-        if (!plan) return;
+                        // Load existing media files from StudyTask if exists
+                        if (plan.media_url && plan.media_url.indexOf('study_task://') === 0) {
+                            var taskId = plan.media_url.replace('study_task://', '');
+                            this.loadStudyTaskMedia(taskId);
+                        } else {
+                            this.selectedFiles = [];
+                            this.displaySelectedFiles();
+                        }
 
-        document.getElementById('modal-title').textContent = '编辑计划';
-        document.getElementById('plan-id').value = plan.id;
-        document.getElementById('plan-title').value = plan.title || '';
-        document.getElementById('plan-start-time').value = plan.start_time || '09:00';
-        document.getElementById('plan-end-time').value = plan.end_time || '17:00';
-        document.getElementById('plan-device').value = plan.device_id || '';
-        document.getElementById('plan-media-url').value = plan.media_url || '';
-        document.getElementById('plan-play-mode').value = plan.play_mode || 'SEQUENTIAL';
+                        this.loadDevices();
+                        setTimeout(function () {
+                            document.getElementById('plan-device').value = plan.device_id || '';
+                        }, 500);
 
-        var days = (plan.repeat_days || '').split(',');
-        document.querySelectorAll('.day-check').forEach(function(cb) {
-            cb.checked = days.indexOf(cb.value) !== -1;
-        });
+                        document.getElementById('plan-modal').style.display = '';
+                    },
 
-        this.loadDevices();
-        setTimeout(function() {
-            document.getElementById('plan-device').value = plan.device_id || '';
-        }, 500);
+                    hideModal: function () {
+                        document.getElementById('plan-modal').style.display = 'none';
+                    },
 
-        document.getElementById('plan-modal').style.display = '';
-    },
+                    savePlan: function () {
+                        var self = this;
+                        var planId = document.getElementById('plan-id').value;
+                        var days = [];
+                        document.querySelectorAll('.day-check:checked').forEach(function (cb) {
+                            days.push(cb.value);
+                        });
 
-    hideModal: function() {
-        document.getElementById('plan-modal').style.display = 'none';
-    },
+                        // Validate
+                        var title = document.getElementById('plan-title').value;
+                        if (!title) {
+                            alert('请输入标题');
+                            return;
+                        }
+                        if (this.selectedFiles.length === 0) {
+                            alert('请至少选择一个媒体文件');
+                            return;
+                        }
 
-    savePlan: function() {
-        var planId = document.getElementById('plan-id').value;
-        var days = [];
-        document.querySelectorAll('.day-check:checked').forEach(function(cb) {
-            days.push(cb.value);
-        });
+                        // Check if editing existing plan with StudyTask
+                        var existingPlan = planId ? this.plans.find(function (p) { return p.id === planId; }) : null;
+                        var existingTaskId = null;
+                        if (existingPlan && existingPlan.media_url && existingPlan.media_url.indexOf('study_task://') === 0) {
+                            existingTaskId = existingPlan.media_url.replace('study_task://', '');
+                        }
 
-        var data = {
-            title: document.getElementById('plan-title').value,
-            start_time: document.getElementById('plan-start-time').value,
-            end_time: document.getElementById('plan-end-time').value,
-            repeat_days: days.join(','),
-            device_id: document.getElementById('plan-device').value || null,
-            media_url: document.getElementById('plan-media-url').value,
-            play_mode: document.getElementById('plan-play-mode').value,
-            is_active: true
-        };
+                        // Prepare task data
+                        var taskData = {
+                            name: title + ' - 媒体任务',
+                            media_items: this.selectedFiles.map(function (file, idx) {
+                                return {
+                                    media_uri: file.uri,
+                                    media_name: file.name,
+                                    duration: 0,
+                                    sort_order: idx,
+                                    source_type: 'SMB',
+                                    server_id: file.server_id
+                                };
+                            })
+                        };
 
-        var path = planId ? '/plans/' + planId : '/plans';
-        var method = planId ? 'PUT' : 'POST';
+                        // Create or update StudyTask
+                        var taskPath = existingTaskId ? '/study/tasks/' + existingTaskId : '/study/tasks';
+                        var taskMethod = existingTaskId ? 'PUT' : 'POST';
 
-        this.api(path, method, data, function(result) {
-            if (result && result.id) {
-                trunplay.hideModal();
-                trunplay.loadPlans();
-            } else {
-                alert('保存失败');
-            }
-        });
-    },
+                        this.api(taskPath, taskMethod, taskData, function (taskResult) {
+                            if (!taskResult || !taskResult.id) {
+                                alert(existingTaskId ? '更新媒体任务失败' : '创建媒体任务失败');
+                                return;
+                            }
 
-    deletePlan: function(planId) {
-        if (!confirm('确定要删除这个计划吗？')) return;
+                            // Now create or update plan
+                            var planData = {
+                                title: title,
+                                start_time: document.getElementById('plan-start-time').value,
+                                end_time: document.getElementById('plan-end-time').value,
+                                repeat_days: days.join(','),
+                                device_id: document.getElementById('plan-device').value || null,
+                                media_url: 'study_task://' + taskResult.id,
+                                play_mode: document.getElementById('plan-play-mode').value,
+                                is_active: true
+                            };
 
-        this.api('/plans/' + planId, 'DELETE', null, function() {
-            trunplay.loadPlans();
-        });
-    },
+                            var path = planId ? '/plans/' + planId : '/plans';
+                            var method = planId ? 'PUT' : 'POST';
 
-    togglePlan: function(planId, currentActive) {
-        var path = '/plans/' + planId + (currentActive ? '/deactivate' : '/activate');
-        this.api(path, 'POST', {}, function() {
-            trunplay.loadPlans();
-        });
-    },
+                            self.api(path, method, planData, function (planResult) {
+                                if (planResult && planResult.id) {
+                                    // Link plan to study task (safe to call even if already linked)
+                                    self.api('/study/tasks/' + taskResult.id + '/link/' + planResult.id, 'POST', {}, function () {
+                                        self.hideModal();
+                                        self.loadPlans();
+                                    });
+                                } else {
+                                    alert('保存计划失败');
+                                }
+                            });
+                        });
+                    },
 
-    playNow: function(planId) {
-        this.api('/plans/' + planId + '/play', 'POST', {}, function(result) {
-            if (result && result.message) {
-                alert('已开始播放');
-            } else {
-                alert('播放失败');
-            }
-        });
-    },
+                    deletePlan: function (planId) {
+                        if (!confirm('确定要删除这个计划吗？')) return;
 
-    init: function() {
-        this.loadPlans();
-    }
-};
+                        this.api('/plans/' + planId, 'DELETE', null, function () {
+                            trunplay.loadPlans();
+                        });
+                    },
 
-document.addEventListener('DOMContentLoaded', function() {
-    trunplay.init();
-});
-//]]>
-</script>
+                    togglePlan: function (planId, currentActive) {
+                        var path = '/plans/' + planId + (currentActive ? '/deactivate' : '/activate');
+                        this.api(path, 'POST', {}, function () {
+                            trunplay.loadPlans();
+                        });
+                    },
 
-<%+footer%>
+                    playNow: function (planId) {
+                        this.api('/plans/' + planId + '/play', 'POST', {}, function (result) {
+                            if (result && result.message) {
+                                alert('已开始播放');
+                            } else {
+                                alert('播放失败');
+                            }
+                        });
+                    },
+
+                    // ========== SMB Browser Functions ==========
+                    smbServers: [],
+                    currentServerId: '',
+                    currentPath: '',
+                    smbFiles: [],
+                    selectedFiles: [],
+                    tempSelectedFiles: [], // Temporary selection in browser
+
+                    showSmbBrowser: function () {
+                        this.tempSelectedFiles = [];
+                        this.currentPath = '';
+                        this.currentServerId = '';
+                        this.loadSmbServers();
+                        document.getElementById('smb-browser-modal').style.display = '';
+                        this.updateSelectedCount();
+                    },
+
+                    hideSmbBrowser: function () {
+                        document.getElementById('smb-browser-modal').style.display = 'none';
+                    },
+
+                    loadSmbServers: function () {
+                        var self = this;
+                        this.api('/smb/servers', 'GET', null, function (data) {
+                            self.smbServers = data || [];
+                            var select = document.getElementById('smb-server-select');
+                            select.innerHTML = '<option value="">选择服务器</option>';
+                            self.smbServers.forEach(function (s) {
+                                select.innerHTML += '<option value="' + s.id + '">' + s.name + ' (' + s.host + ')</option>';
+                            });
+                        });
+                    },
+
+                    onServerChange: function () {
+                        var serverId = document.getElementById('smb-server-select').value;
+                        if (serverId) {
+                            this.currentServerId = serverId;
+                            this.browsePath('');
+                        } else {
+                            this.currentServerId = '';
+                            this.clearFileList();
+                        }
+                    },
+
+                    browsePath: function (path) {
+                        var self = this;
+                        if (!this.currentServerId) return;
+
+                        this.currentPath = path;
+                        this.updateBreadcrumb();
+
+                        var apiPath = '/smb/servers/' + this.currentServerId + '/browse?path=' + encodeURIComponent(path);
+                        this.api(apiPath, 'GET', null, function (data) {
+                            if (data && data.items) {
+                                self.smbFiles = data.items;
+                                self.renderFileList();
+                            } else {
+                                self.clearFileList();
+                                alert('浏览失败');
+                            }
+                        });
+                    },
+
+                    updateBreadcrumb: function () {
+                        var breadcrumb = document.getElementById('breadcrumb-path');
+                        if (!this.currentPath) {
+                            breadcrumb.innerHTML = '<a href="#" onclick="return false;" style="color:#0066cc;">根目录</a>';
+                        } else {
+                            var parts = this.currentPath.split('/').filter(function (p) { return p; });
+                            var html = '<a href="#" onclick="trunplay.browsePath(\'\'); return false;" style="color:#0066cc;">根目录</a>';
+                            var pathSoFar = '';
+                            parts.forEach(function (part, idx) {
+                                pathSoFar += '/' + part;
+                                var clickPath = pathSoFar;
+                                html += ' &gt; <a href="#" onclick="trunplay.browsePath(\'' + clickPath + '\'); return false;" style="color:#0066cc;">' + part + '</a>';
+                            });
+                            breadcrumb.innerHTML = html;
+                        }
+                    },
+
+                    renderFileList: function () {
+                        var tbody = document.getElementById('smb-file-list-body');
+                        tbody.innerHTML = '';
+
+                        if (!this.smbFiles || this.smbFiles.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">此文件夹为空</td></tr>';
+                            return;
+                        }
+
+                        this.smbFiles.forEach(function (file) {
+                            var row = tbody.insertRow(-1);
+                            var isFolder = file.type === 'FOLDER';
+
+                            // Checkbox cell
+                            var cell1 = row.insertCell(0);
+                            if (!isFolder) {
+                                var checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.className = 'file-checkbox';
+                                checkbox.dataset.fileId = file.id;
+                                checkbox.dataset.fileData = JSON.stringify(file);
+                                checkbox.onchange = function () { trunplay.onFileCheckChange(); };
+                                cell1.appendChild(checkbox);
+                            }
+
+                            // Icon cell
+                            var cell2 = row.insertCell(1);
+                            var icon = isFolder ? '📁' : (file.type === 'VIDEO' ? '🎬' : file.type === 'AUDIO' ? '🎵' : '🖼️');
+                            cell2.textContent = icon;
+
+                            // Name cell
+                            var cell3 = row.insertCell(2);
+                            if (isFolder) {
+                                var link = document.createElement('a');
+                                link.href = '#';
+                                link.textContent = file.name;
+                                link.style.color = '#0066cc';
+                                link.onclick = function () {
+                                    trunplay.browsePath(file.path);
+                                    return false;
+                                };
+                                cell3.appendChild(link);
+                            } else {
+                                cell3.textContent = file.name;
+                            }
+
+                            // Type cell
+                            var cell4 = row.insertCell(3);
+                            cell4.textContent = file.type === 'FOLDER' ? '文件夹' : file.type;
+
+                            // Size cell
+                            var cell5 = row.insertCell(4);
+                            cell5.textContent = isFolder ? '-' : trunplay.formatSize(file.size);
+                        });
+                    },
+
+                    clearFileList: function () {
+                        var tbody = document.getElementById('smb-file-list-body');
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">请选择服务器</td></tr>';
+                    },
+
+                    formatSize: function (bytes) {
+                        if (bytes === 0) return '0 B';
+                        var k = 1024;
+                        var sizes = ['B', 'KB', 'MB', 'GB'];
+                        var i = Math.floor(Math.log(bytes) / Math.log(k));
+                        return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+                    },
+
+                    onFileCheckChange: function () {
+                        this.tempSelectedFiles = [];
+                        var checkboxes = document.querySelectorAll('.file-checkbox:checked');
+                        checkboxes.forEach(function (cb) {
+                            var fileData = JSON.parse(cb.dataset.fileData);
+                            trunplay.tempSelectedFiles.push(fileData);
+                        });
+                        this.updateSelectedCount();
+                    },
+
+                    toggleSelectAll: function () {
+                        var selectAll = document.getElementById('select-all-files');
+                        var checkboxes = document.querySelectorAll('.file-checkbox');
+                        checkboxes.forEach(function (cb) {
+                            cb.checked = selectAll.checked;
+                        });
+                        this.onFileCheckChange();
+                    },
+
+                    updateSelectedCount: function () {
+                        document.getElementById('selected-count').textContent = '已选择: ' + this.tempSelectedFiles.length + ' 个文件';
+                    },
+
+                    addSelectedFiles: function () {
+                        if (this.tempSelectedFiles.length === 0) {
+                            alert('请至少选择一个文件');
+                            return;
+                        }
+                        this.selectedFiles = this.tempSelectedFiles.slice();
+                        this.displaySelectedFiles();
+                        this.hideSmbBrowser();
+                    },
+
+                    displaySelectedFiles: function () {
+                        var container = document.getElementById('selected-files-list');
+                        if (this.selectedFiles.length === 0) {
+                            container.innerHTML = '';
+                            return;
+                        }
+
+                        var html = '<div style="border:1px solid #ddd; padding:8px; border-radius:3px; background:#f9f9f9;">';
+                        html += '<strong>已选择 ' + this.selectedFiles.length + ' 个文件:</strong><br>';
+                        this.selectedFiles.forEach(function (file, idx) {
+                            var icon = file.type === 'VIDEO' ? '🎬' : file.type === 'AUDIO' ? '🎵' : '🖼️';
+                            html += '<div style="margin:5px 0; padding:5px; background:white; border-radius:2px;">';
+                            html += icon + ' ' + file.name + ' (' + trunplay.formatSize(file.size) + ') ';
+                            html += '<button class="cbi-button cbi-button-remove" onclick="trunplay.removeSelectedFile(' + idx + ')" type="button" style="float:right; padding:2px 8px;">删除</button>';
+                            html += '</div>';
+                        });
+                        html += '</div>';
+                        container.innerHTML = html;
+                    },
+
+                    removeSelectedFile: function (index) {
+                        this.selectedFiles.splice(index, 1);
+                        this.displaySelectedFiles();
+                    },
+
+                    loadStudyTaskMedia: function (taskId) {
+                        var self = this;
+                        this.api('/study/tasks/' + taskId, 'GET', null, function (task) {
+                            if (task && task.media_items) {
+                                self.selectedFiles = task.media_items.map(function (item) {
+                                    return {
+                                        id: item.id,
+                                        name: item.media_name,
+                                        uri: item.media_uri,
+                                        path: item.media_uri,
+                                        type: item.source_type === 'SMB' ? 'VIDEO' : 'FILE',
+                                        server_id: item.server_id || '',
+                                        size: 0
+                                    };
+                                });
+                                self.displaySelectedFiles();
+                            } else {
+                                self.selectedFiles = [];
+                                self.displaySelectedFiles();
+                            }
+                        });
+                    },
+
+                    init: function () {
+                        this.loadPlans();
+                    }
+                };
+
+                document.addEventListener('DOMContentLoaded', function () {
+                    trunplay.init();
+                });
+                //]]>
+            </script>
+
+            <%+footer%>
