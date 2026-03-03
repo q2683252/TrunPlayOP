@@ -28,6 +28,7 @@ export function createApiClient({ baseUrl, timeoutMs = 8000, log }) {
     const method = String(options.method || 'GET').toUpperCase();
     const url = buildUrl(path);
     const requestKey = options.requestKey || null;
+    const requestTimeoutMs = options.timeoutMs || timeoutMs;
 
     if (requestKey && inFlight.has(requestKey)) {
       inFlight.get(requestKey).abort();
@@ -35,7 +36,11 @@ export function createApiClient({ baseUrl, timeoutMs = 8000, log }) {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), options.timeoutMs || timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, requestTimeoutMs);
 
     if (requestKey) inFlight.set(requestKey, controller);
 
@@ -74,12 +79,20 @@ export function createApiClient({ baseUrl, timeoutMs = 8000, log }) {
 
       return payload;
     } catch (err) {
-      const normalized = normalizeError(err, '网络请求失败');
-      if (log) log('error', `${method} ${path} failed`, normalized);
+      const normalized = timedOut && err?.name === 'AbortError'
+        ? {
+            message: '请求超时，请重试',
+            status: 0,
+            code: 'TIMEOUT',
+            details: { timeout_ms: requestTimeoutMs },
+            __normalized: true,
+          }
+        : normalizeError(err, '网络请求失败');
+      if (log) log(normalized.code === 'ABORTED' ? 'info' : 'error', `${method} ${path} failed`, normalized);
       throw normalized;
     } finally {
       clearTimeout(timer);
-      if (requestKey) inFlight.delete(requestKey);
+      if (requestKey && inFlight.get(requestKey) === controller) inFlight.delete(requestKey);
     }
   }
 

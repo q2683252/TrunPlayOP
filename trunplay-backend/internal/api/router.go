@@ -3,6 +3,8 @@ package api
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/trunplay/trunplay-backend/internal/config"
@@ -50,11 +52,14 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 		origins = []string{"http://localhost", "http://127.0.0.1"}
 	}
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", origins[0])
-		if len(origins) > 1 {
-			for _, o := range origins[1:] {
-				c.Writer.Header().Add("Access-Control-Allow-Origin", o)
-			}
+		origin := c.GetHeader("Origin")
+		if origin != "" && isOriginAllowed(origin, origins) {
+			// Echo back a single matching origin so browsers accept credentialed CORS.
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Vary", "Origin")
+		} else if len(origins) > 0 {
+			// Non-browser clients (no Origin header) keep the legacy default.
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origins[0])
 		}
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
@@ -65,6 +70,43 @@ func corsMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func isOriginAllowed(origin string, allowed []string) bool {
+	for _, item := range allowed {
+		if originMatchesAllowRule(origin, item) {
+			return true
+		}
+	}
+	return false
+}
+
+func originMatchesAllowRule(origin, allowRule string) bool {
+	origin = strings.TrimSpace(origin)
+	allowRule = strings.TrimSpace(allowRule)
+	if origin == "" || allowRule == "" {
+		return false
+	}
+	if strings.EqualFold(origin, allowRule) {
+		return true
+	}
+
+	originURL, err1 := url.Parse(origin)
+	allowURL, err2 := url.Parse(allowRule)
+	if err1 != nil || err2 != nil || originURL.Scheme == "" || allowURL.Scheme == "" {
+		return false
+	}
+	if !strings.EqualFold(originURL.Scheme, allowURL.Scheme) {
+		return false
+	}
+	if !strings.EqualFold(originURL.Hostname(), allowURL.Hostname()) {
+		return false
+	}
+	// Rule without explicit port accepts any port on the same host.
+	if allowURL.Port() == "" {
+		return true
+	}
+	return originURL.Port() == allowURL.Port()
 }
 
 func getDB(c *gin.Context) *sql.DB {
