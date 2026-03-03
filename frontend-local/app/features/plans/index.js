@@ -29,6 +29,7 @@ export function registerPlans(app) {
   let lastPlayTriggerAt = 0;
   let playFailureCooldownUntil = 0;
   const planPlayCooldownUntil = new Map();
+  let currentLinkedTaskIds = [];
 
   function collectRepeatDays() {
     return Array.from(document.querySelectorAll('.day-check:checked')).map((el) => el.value).join(',');
@@ -127,6 +128,7 @@ export function registerPlans(app) {
   function resetPlanForm() {
     planIdInput.value = '';
     modalTitle.textContent = '新建计划';
+    currentLinkedTaskIds = [];
     applyDraft({
       title: '',
       start_time: '09:00',
@@ -151,11 +153,13 @@ export function registerPlans(app) {
     const [studyTasks, planDetail] = await Promise.all([
       app.api.get('/study/tasks', { requestKey: 'plans:studyTasks' }).catch(() => []),
       planId ? app.api.get(`/plans/${planId}`, { requestKey: 'plans:detail' }).catch(() => null) : Promise.resolve(null),
-      fillDeviceSelect(options?.draft?.device_id || (planDetail?.device_id || '')),
     ]);
+
+    await fillDeviceSelect(options?.draft?.device_id || (planDetail?.device_id || ''));
 
     const detail = planDetail || null;
     const linkedIds = detail?.study_tasks?.map((task) => task.id) || [];
+    currentLinkedTaskIds = linkedIds.slice();
     const preselect = options.preselectTaskIds || [];
 
     if (detail) {
@@ -495,9 +499,11 @@ export function registerPlans(app) {
 
       if (!plan?.id) throw new Error('计划保存失败');
 
-      await app.api.post(`/plans/${plan.id}/link-study-tasks`, {
-        study_task_ids: selectedTaskIds,
+      const nextIds = Array.from(new Set(selectedTaskIds));
+      await app.api.post(`/plans/${encodeURIComponent(plan.id)}/link-study-tasks`, {
+        study_task_ids: nextIds,
       });
+      currentLinkedTaskIds = nextIds;
 
       app.ui.toast('success', planId ? '计划已更新' : '计划已创建');
       app.ui.closeModal(modal);

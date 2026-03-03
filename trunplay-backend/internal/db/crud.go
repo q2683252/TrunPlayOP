@@ -2,9 +2,16 @@ package db
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+)
+
+var (
+	ErrPlanNotFound      = errors.New("plan not found")
+	ErrStudyTaskNotFound = errors.New("study task not found")
 )
 
 func planToMap(p *Plan, skipHolidays, isActive bool) map[string]interface{} {
@@ -876,6 +883,47 @@ func UnlinkPlanStudyTask(tx *sql.Tx, planID, studyTaskID string) (bool, error) {
 	}
 	n, _ := res.RowsAffected()
 	return n > 0, nil
+}
+
+func ReplacePlanStudyTasks(tx *sql.Tx, planID string, studyTaskIDs []string) error {
+	if _getPlan(tx, planID) == nil {
+		return ErrPlanNotFound
+	}
+
+	uniqueIDs := make([]string, 0, len(studyTaskIDs))
+	seen := make(map[string]struct{}, len(studyTaskIDs))
+	for _, taskID := range studyTaskIDs {
+		if taskID == "" {
+			return fmt.Errorf("%w: empty id", ErrStudyTaskNotFound)
+		}
+		if _, ok := seen[taskID]; ok {
+			continue
+		}
+		seen[taskID] = struct{}{}
+
+		if _getStudyTask(tx, taskID) == nil {
+			return fmt.Errorf("%w: %s", ErrStudyTaskNotFound, taskID)
+		}
+		uniqueIDs = append(uniqueIDs, taskID)
+	}
+
+	if _, err := tx.Exec("DELETE FROM plan_study_tasks WHERE plan_id = ?", planID); err != nil {
+		return err
+	}
+
+	for sortOrder, taskID := range uniqueIDs {
+		if _, err := tx.Exec(
+			"INSERT INTO plan_study_tasks (id, plan_id, study_task_id, sort_order) VALUES (?,?,?,?)",
+			uuid.New().String(),
+			planID,
+			taskID,
+			sortOrder,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func GetPlanStudyTasks(tx *sql.Tx, planID string) ([]map[string]interface{}, error) {

@@ -112,8 +112,8 @@ export function createUiFeedback() {
     });
   }
 
-  function openModal(id, triggerElement = null) {
-    const modal = byId(id);
+  function openModal(idOrEl, triggerElement = null) {
+    const modal = typeof idOrEl === 'string' ? byId(idOrEl) : idOrEl;
     if (!modal) return;
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');

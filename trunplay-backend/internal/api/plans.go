@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -17,6 +18,7 @@ func registerPlans(r *gin.RouterGroup) {
 	g.DELETE("/:plan_id", deletePlan)
 	g.POST("/:plan_id/activate", activatePlan)
 	g.POST("/:plan_id/deactivate", deactivatePlan)
+	g.POST("/:plan_id/link-study-tasks", linkPlanStudyTasks)
 	g.POST("/:plan_id/play", playPlan)
 	g.POST("/:plan_id/reset-progress", resetPlanProgress)
 }
@@ -38,6 +40,19 @@ func listPlans(c *gin.Context) {
 	if err != nil {
 		ServerError(c, err.Error())
 		return
+	}
+	for _, plan := range plans {
+		planID, _ := plan["id"].(string)
+		if planID == "" {
+			plan["study_tasks"] = []map[string]interface{}{}
+			continue
+		}
+		studyTasks, err := db.GetPlanStudyTasks(tx, planID)
+		if err != nil {
+			ServerError(c, err.Error())
+			return
+		}
+		plan["study_tasks"] = studyTasks
 	}
 	_ = tx.Commit()
 	c.JSON(http.StatusOK, plans)
@@ -61,6 +76,12 @@ func getPlan(c *gin.Context) {
 		NotFound(c, "Plan not found")
 		return
 	}
+	studyTasks, err := db.GetPlanStudyTasks(tx, planID)
+	if err != nil {
+		ServerError(c, err.Error())
+		return
+	}
+	plan["study_tasks"] = studyTasks
 	_ = tx.Commit()
 	c.JSON(http.StatusOK, plan)
 }
@@ -139,6 +160,51 @@ func updatePlan(c *gin.Context) {
 	}
 	_ = tx.Commit()
 	c.JSON(http.StatusOK, plan)
+}
+
+func linkPlanStudyTasks(c *gin.Context) {
+	planID := c.Param("plan_id")
+	var body struct {
+		StudyTaskIDs []string `json:"study_task_ids"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		BadRequest(c, err.Error())
+		return
+	}
+
+	database := getDB(c)
+	tx, err := database.Begin()
+	if err != nil {
+		ServerError(c, err.Error())
+		return
+	}
+	defer tx.Rollback()
+
+	if err := db.ReplacePlanStudyTasks(tx, planID, body.StudyTaskIDs); err != nil {
+		if errors.Is(err, db.ErrPlanNotFound) {
+			NotFound(c, "Plan not found")
+			return
+		}
+		if errors.Is(err, db.ErrStudyTaskNotFound) {
+			BadRequest(c, err.Error())
+			return
+		}
+		ServerError(c, err.Error())
+		return
+	}
+
+	studyTasks, err := db.GetPlanStudyTasks(tx, planID)
+	if err != nil {
+		ServerError(c, err.Error())
+		return
+	}
+
+	_ = tx.Commit()
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "Study tasks linked",
+		"plan_id":     planID,
+		"study_tasks": studyTasks,
+	})
 }
 
 func deletePlan(c *gin.Context) {

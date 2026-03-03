@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -238,5 +239,98 @@ func TestCreateStudyTask_GetStudyTask(t *testing.T) {
 	}
 	if got["name"] != "Task1" {
 		t.Errorf("get task name: got %v", got["name"])
+	}
+}
+
+func TestReplacePlanStudyTasks_ReplacesLinksAndOrder(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	plan, err := CreatePlan(tx, "Plan", "09:00", "17:00", "1,2,3,4,5", "", "file:///x", "SEQUENTIAL", false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planID, _ := plan["id"].(string)
+
+	taskA, err := CreateStudyTask(tx, "TaskA", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	taskB, err := CreateStudyTask(tx, "TaskB", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	taskC, err := CreateStudyTask(tx, "TaskC", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	taskAID, _ := taskA["id"].(string)
+	taskBID, _ := taskB["id"].(string)
+	taskCID, _ := taskC["id"].(string)
+
+	if _, err := LinkPlanStudyTask(tx, planID, taskAID, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LinkPlanStudyTask(tx, planID, taskBID, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ReplacePlanStudyTasks(tx, planID, []string{taskCID, taskAID}); err != nil {
+		t.Fatal(err)
+	}
+
+	links, err := GetPlanStudyTasks(tx, planID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 2 {
+		t.Fatalf("expected 2 linked tasks, got %d", len(links))
+	}
+	if links[0]["id"] != taskCID || links[1]["id"] != taskAID {
+		t.Fatalf("unexpected link order: %#v", links)
+	}
+}
+
+func TestReplacePlanStudyTasks_InvalidTaskLeavesLinksUnchanged(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+
+	plan, err := CreatePlan(tx, "Plan", "09:00", "17:00", "1,2,3,4,5", "", "file:///x", "SEQUENTIAL", false, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	planID, _ := plan["id"].(string)
+
+	taskA, err := CreateStudyTask(tx, "TaskA", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	taskAID, _ := taskA["id"].(string)
+
+	if _, err := LinkPlanStudyTask(tx, planID, taskAID, 0); err != nil {
+		t.Fatal(err)
+	}
+
+	err = ReplacePlanStudyTasks(tx, planID, []string{"missing-task-id"})
+	if !errors.Is(err, ErrStudyTaskNotFound) {
+		t.Fatalf("expected ErrStudyTaskNotFound, got %v", err)
+	}
+
+	links, err := GetPlanStudyTasks(tx, planID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(links) != 1 || links[0]["id"] != taskAID {
+		t.Fatalf("existing links should stay unchanged after failed replace, got %#v", links)
 	}
 }
